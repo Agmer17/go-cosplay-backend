@@ -38,12 +38,8 @@ type App struct {
 
 func NewApp(configs Configs, rtr *gin.Engine) *App {
 
-	// setting up the redis
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     configs.RedisHost,
-		Password: "",
-		DB:       0,
-	})
+	opt, _ := redis.ParseURL(configs.RedisHost)
+	redisClient := redis.NewClient(opt)
 
 	database := db.NewDatabase(configs.DatabaseUrl, configs.AppContext)
 
