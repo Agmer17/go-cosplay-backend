@@ -36,3 +36,24 @@ func NewDatabase(url string, ctx context.Context) *Database {
 		Query: query,
 	}
 }
+
+func (db *Database) Transaction(
+	ctx context.Context,
+	fn func(*generated.Queries) error,
+) error {
+
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback(ctx)
+
+	qtx := db.Query.WithTx(tx)
+
+	if err := fn(qtx); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}

@@ -55,17 +55,6 @@ func (as *AuthService) AccuireGoogleLogin() (string, *shared.ErrorResponse) {
 	return redirect, nil
 }
 
-func (as *AuthService) createUsersAuth(
-	ctx context.Context,
-	data generated.CreateUserAuthParams,
-) (generated.UsersAuth, *shared.ErrorResponse) {
-	auth, err := as.database.Query.CreateUserAuth(ctx, data)
-	if err != nil {
-		return generated.UsersAuth{}, shared.NewErrorResponse(500, "something wrong while trying to create the account, please try again later")
-	}
-	return auth, nil
-}
-
 func (as *AuthService) AuthenticateGoogleLogin(ctx context.Context, code string) (string, *shared.ErrorResponse) {
 	t, err := as.oauthConfig.Exchange(ctx, code)
 	if err != nil {
@@ -89,7 +78,7 @@ func (as *AuthService) AuthenticateGoogleLogin(ctx context.Context, code string)
 	}
 
 	if !googleUser.VerifiedEmail {
-		return "", shared.NewErrorResponse(400, "google account email is not verified")
+		return "", shared.NewErrorResponse(400, "google account email is not verified, please use another account!")
 	}
 
 	existingData, err := as.database.Query.GetUserAuthByProviderOpenID(
@@ -99,39 +88,77 @@ func (as *AuthService) AuthenticateGoogleLogin(ctx context.Context, code string)
 		})
 
 	if err == nil {
-		// user sudah ada, langsung buat sesi
-		return as.issueSession(ctx, existingData.ID, existingData.Role)
+		currentUser, getUserErr := as.database.Query.GetUserByID(ctx, existingData.ID)
+		if getUserErr != nil {
+			return "", shared.NewErrorResponse(500, "something wrong with the server right now, please try again another time")
+		}
+
+		return as.issueSession(ctx, existingData.ID, currentUser.Role, currentUser.Status)
 	}
 
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return "", shared.NewErrorResponse(500, "something went wrong with the server")
 	}
-	auth, cErr := as.createUsersAuth(
-		ctx,
-		generated.CreateUserAuthParams{
+
+	var createdUser generated.User
+
+	as.database.Transaction(ctx, func(q *generated.Queries) error {
+		authData, err := q.CreateUserAuth(ctx, generated.CreateUserAuthParams{
 			Provider:       generated.AuthProviderGOOGLE,
 			ProviderOpenid: googleUser.ID,
 			Email:          googleUser.Email,
-			Role:           generated.UserRoleADMIN,
-		},
-	)
-	if cErr != nil {
-		return "", cErr
+		})
+
+		if err != nil {
+			return err
+		}
+
+		randStr, _ := utils.GenerateSecureString(12)
+
+		userData, err := q.CreateUser(ctx, generated.CreateUserParams{
+			ID:       authData.ID,
+			Username: "USER-" + randStr,
+			Role:     generated.UserRoleADMIN,
+		})
+
+		createdUser = userData
+
+		if err != nil {
+			return err
+		}
+
+		_, err = q.CreateProfile(ctx, generated.CreateProfileParams{
+			UserID:      userData.ID,
+			DisplayName: &googleUser.GivenName,
+			AvatarUrl:   &googleUser.Picture,
+		})
+
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	token, sessErr := as.issueSession(ctx, createdUser.ID, createdUser.Role, createdUser.Status)
+	if sessErr != nil {
+		return "", sessErr
 	}
 
-	return as.issueSession(ctx, auth.ID, auth.Role)
+	return token, nil
 }
 
-func (as *AuthService) issueSession(ctx context.Context, userID uuid.UUID, role generated.UserRole) (string, *shared.ErrorResponse) {
+func (as *AuthService) issueSession(ctx context.Context, userID uuid.UUID, role generated.UserRole, status generated.UserStatus) (string, *shared.ErrorResponse) {
 	token, err := utils.GenerateSecureString(32)
 	if err != nil {
 		return "", shared.NewErrorResponse(500, "failed to generate token")
 	}
 
-	sess := SessionsData{
+	sess := shared.SessionsData{
 		SessionId: token,
 		UserId:    userID,
 		Role:      string(role),
+		Status:    string(status),
 	}
 
 	if err := as.CreateSessions(ctx, sess); err != nil {
@@ -139,4 +166,8 @@ func (as *AuthService) issueSession(ctx context.Context, userID uuid.UUID, role 
 	}
 
 	return token, nil
+}
+
+func (as *AuthService) RevokeSessions(ctx context.Context, token string) *shared.ErrorResponse {
+	return as.ExpireSessions(ctx, token)
 }

@@ -40,7 +40,7 @@ func (ah *AuthHandler) HandleGoogleCallback(c *gin.Context) {
 
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(
-		"refresh_token",
+		"access_token",
 		sessionToken,
 		oneWeek,
 		"/",

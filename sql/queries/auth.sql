@@ -2,14 +2,12 @@
 INSERT INTO users_auth (
     provider,
     provider_openid,
-    email,
-    role
+    email
 )
 VALUES (
     sqlc.arg(provider),
     sqlc.arg(provider_openid),
-    sqlc.arg(email),
-    sqlc.arg(role)
+    sqlc.arg(email)
 )
 RETURNING *;
 

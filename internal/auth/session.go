@@ -4,22 +4,15 @@ import (
 	"context"
 	"time"
 
+	"github.com/Agmer17/go-cosplay-backend/internal/shared"
 	"github.com/Agmer17/go-cosplay-backend/internal/utils"
-	"github.com/google/uuid"
 )
 
 const session_expire = 7 * 24 * time.Hour
 
-type SessionsData struct {
-	SessionId string    `json:"session_id"`
-	UserId    uuid.UUID `json:"user_id"`
-	Role      string    `json:"role"`
-	ExpiresAt time.Time `json:"expires_at"`
-}
-
 func (as *AuthService) CreateSessions(
 	ctx context.Context,
-	session SessionsData,
+	session shared.SessionsData,
 ) error {
 
 	const sessionExpire = 7 * 24 * time.Hour
@@ -35,4 +28,17 @@ func (as *AuthService) CreateSessions(
 		session,
 		sessionExpire,
 	)
+}
+
+func (as *AuthService) ExpireSessions(ctx context.Context, key string) *shared.ErrorResponse {
+
+	sessionKey := "sessions:" + key
+
+	err := as.rdb.Del(ctx, sessionKey).Err()
+	if err != nil {
+		return shared.NewErrorResponse(500, "something wrong with the server, trying to logout another time")
+	}
+
+	return nil
+
 }

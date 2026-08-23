@@ -7,6 +7,7 @@ package generated
 import (
 	"database/sql/driver"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -96,11 +97,77 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 	return string(ns.UserRole), nil
 }
 
+type UserStatus string
+
+const (
+	UserStatusACTIVE     UserStatus = "ACTIVE"
+	UserStatusSUSPENDED  UserStatus = "SUSPENDED"
+	UserStatusDEACTIVATE UserStatus = "DEACTIVATE"
+	UserStatusONBOARDING UserStatus = "ON_BOARDING"
+)
+
+func (e *UserStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = UserStatus(s)
+	case string:
+		*e = UserStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for UserStatus: %T", src)
+	}
+	return nil
+}
+
+type NullUserStatus struct {
+	UserStatus UserStatus `json:"user_status"`
+	Valid      bool       `json:"valid"` // Valid is true if UserStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullUserStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.UserStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.UserStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullUserStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.UserStatus), nil
+}
+
+type Profile struct {
+	UserID      uuid.UUID `json:"user_id"`
+	DisplayName *string   `json:"display_name"`
+	Bio         *string   `json:"bio"`
+	AvatarUrl   *string   `json:"avatar_url"`
+	BannerUrl   *string   `json:"banner_url"`
+	SocialLinks []byte    `json:"social_links"`
+	CosplayTags []string  `json:"cosplay_tags"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type User struct {
+	ID           uuid.UUID          `json:"id"`
+	Username     string             `json:"username"`
+	Status       UserStatus         `json:"status"`
+	StatusReason *string            `json:"status_reason"`
+	StatusUntil  pgtype.Timestamptz `json:"status_until"`
+	Role         UserRole           `json:"role"`
+	IsVerified   bool               `json:"is_verified"`
+	CreatedAt    time.Time          `json:"created_at"`
+	UpdatedAt    time.Time          `json:"updated_at"`
+}
+
 type UsersAuth struct {
 	ID             uuid.UUID          `json:"id"`
 	Provider       AuthProvider       `json:"provider"`
 	ProviderOpenid string             `json:"provider_openid"`
 	Email          string             `json:"email"`
-	Role           UserRole           `json:"role"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }

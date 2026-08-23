@@ -9,46 +9,36 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createUserAuth = `-- name: CreateUserAuth :one
 INSERT INTO users_auth (
     provider,
     provider_openid,
-    email,
-    role
+    email
 )
 VALUES (
     $1,
     $2,
-    $3,
-    $4
+    $3
 )
-RETURNING id, provider, provider_openid, email, role, created_at
+RETURNING id, provider, provider_openid, email, created_at
 `
 
 type CreateUserAuthParams struct {
 	Provider       AuthProvider `json:"provider"`
 	ProviderOpenid string       `json:"provider_openid"`
 	Email          string       `json:"email"`
-	Role           UserRole     `json:"role"`
 }
 
 func (q *Queries) CreateUserAuth(ctx context.Context, arg CreateUserAuthParams) (UsersAuth, error) {
-	row := q.db.QueryRow(ctx, createUserAuth,
-		arg.Provider,
-		arg.ProviderOpenid,
-		arg.Email,
-		arg.Role,
-	)
+	row := q.db.QueryRow(ctx, createUserAuth, arg.Provider, arg.ProviderOpenid, arg.Email)
 	var i UsersAuth
 	err := row.Scan(
 		&i.ID,
 		&i.Provider,
 		&i.ProviderOpenid,
 		&i.Email,
-		&i.Role,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -76,17 +66,9 @@ WHERE id = $1
 LIMIT 1
 `
 
-type GetUserAuthByIDRow struct {
-	ID             uuid.UUID          `json:"id"`
-	Provider       AuthProvider       `json:"provider"`
-	ProviderOpenid string             `json:"provider_openid"`
-	Email          string             `json:"email"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-}
-
-func (q *Queries) GetUserAuthByID(ctx context.Context, id uuid.UUID) (GetUserAuthByIDRow, error) {
+func (q *Queries) GetUserAuthByID(ctx context.Context, id uuid.UUID) (UsersAuth, error) {
 	row := q.db.QueryRow(ctx, getUserAuthByID, id)
-	var i GetUserAuthByIDRow
+	var i UsersAuth
 	err := row.Scan(
 		&i.ID,
 		&i.Provider,
@@ -99,7 +81,7 @@ func (q *Queries) GetUserAuthByID(ctx context.Context, id uuid.UUID) (GetUserAut
 
 const getUserAuthByProviderOpenID = `-- name: GetUserAuthByProviderOpenID :one
 SELECT
-    id, provider, provider_openid, email, role, created_at
+    id, provider, provider_openid, email, created_at
 FROM users_auth
 WHERE provider = $1
   AND provider_openid = $2
@@ -119,7 +101,6 @@ func (q *Queries) GetUserAuthByProviderOpenID(ctx context.Context, arg GetUserAu
 		&i.Provider,
 		&i.ProviderOpenid,
 		&i.Email,
-		&i.Role,
 		&i.CreatedAt,
 	)
 	return i, err
