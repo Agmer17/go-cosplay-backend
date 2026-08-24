@@ -6,11 +6,11 @@ package generated
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type AuthProvider string
@@ -142,32 +142,32 @@ func (ns NullUserStatus) Value() (driver.Value, error) {
 }
 
 type Profile struct {
-	UserID      uuid.UUID `json:"user_id"`
-	DisplayName *string   `json:"display_name"`
-	Bio         *string   `json:"bio"`
-	AvatarUrl   *string   `json:"avatar_url"`
-	BannerUrl   *string   `json:"banner_url"`
-	SocialLinks []byte    `json:"social_links"`
-	CosplayTags []string  `json:"cosplay_tags"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	UserID      uuid.UUID       `json:"user_id"`
+	DisplayName *string         `json:"display_name"`
+	Bio         *string         `json:"bio"`
+	AvatarUrl   *string         `json:"avatar_url"`
+	BannerUrl   *string         `json:"banner_url"`
+	SocialLinks json.RawMessage `json:"social_links"`
+	CosplayTags []string        `json:"cosplay_tags"`
+	UpdatedAt   time.Time       `json:"updated_at"`
 }
 
 type User struct {
-	ID           uuid.UUID          `json:"id"`
-	Username     string             `json:"username"`
-	Status       UserStatus         `json:"status"`
-	StatusReason *string            `json:"status_reason"`
-	StatusUntil  pgtype.Timestamptz `json:"status_until"`
-	Role         UserRole           `json:"role"`
-	IsVerified   bool               `json:"is_verified"`
-	CreatedAt    time.Time          `json:"created_at"`
-	UpdatedAt    time.Time          `json:"updated_at"`
+	ID           uuid.UUID  `json:"id"`
+	Username     string     `json:"username"`
+	Status       UserStatus `json:"status"`
+	StatusReason *string    `json:"status_reason"`
+	StatusUntil  time.Time  `json:"status_until"`
+	Role         UserRole   `json:"role"`
+	IsVerified   bool       `json:"is_verified"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
 type UsersAuth struct {
-	ID             uuid.UUID          `json:"id"`
-	Provider       AuthProvider       `json:"provider"`
-	ProviderOpenid string             `json:"provider_openid"`
-	Email          string             `json:"email"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	ID             uuid.UUID    `json:"id"`
+	Provider       AuthProvider `json:"provider"`
+	ProviderOpenid string       `json:"provider_openid"`
+	Email          string       `json:"email"`
+	CreatedAt      time.Time    `json:"created_at"`
 }

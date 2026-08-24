@@ -43,6 +43,7 @@ SELECT
     u.id,
     u.username,
     u.status,
+    u.role,
     u.is_verified,
     p.display_name,
     p.bio,
@@ -61,6 +62,7 @@ SELECT
     u.id,
     u.username,
     u.is_verified,
+    u.role,
     p.display_name,
     p.bio,
     p.avatar_url,
@@ -70,5 +72,4 @@ SELECT
 FROM users u
 JOIN profiles p ON p.user_id = u.id
 WHERE u.username = sqlc.arg(username)
-  AND u.status = 'ACTIVE'
-  OR u.staus = 'ON_BOARDING';
+  AND u.status IN ('ACTIVE', 'ON_BOARDING');

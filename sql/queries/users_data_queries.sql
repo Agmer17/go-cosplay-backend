@@ -16,10 +16,6 @@ RETURNING *;
 SELECT * FROM users
 WHERE id = sqlc.arg(id);
 
--- name: GetUserByUsername :one
-SELECT * FROM users
-WHERE username = sqlc.arg(username);
-
 -- name: IsUsernameTaken :one
 -- Buat live-check saat user ngetik username di form onboarding.
 SELECT EXISTS (

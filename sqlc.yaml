@@ -19,14 +19,20 @@ sql:
 
           # --- WAKTU / TIMESTAMPS ---
           # (Mencakup penulisan spesifik maupun alias)
-          - db_type: "timestamp with time zone"
-            go_type: "time.Time"
           - db_type: "timestamptz"
             go_type: "time.Time"
-          - db_type: "timestamp without time zone"
+          
+          - db_type: "timestamptz"
+            nullable: true
             go_type: "time.Time"
+
           - db_type: "timestamp"
             go_type: "time.Time"
+          
+          - db_type: "timestamp"
+            nullable: true
+            go_type: "time.Time"
+
           - db_type: "date"
             go_type: "time.Time"
 
@@ -43,5 +49,14 @@ sql:
           # lebih baik daripada string agar validasi JSON terjaga.
           - db_type: "jsonb"
             go_type: "encoding/json.RawMessage"
+            
           - db_type: "json"
+            go_type: "encoding/json.RawMessage"
+
+          - db_type: "jsonb"
+            nullable: true
+            go_type: "encoding/json.RawMessage"
+
+          - db_type: "json"
+            nullable: true
             go_type: "encoding/json.RawMessage"

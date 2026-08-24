@@ -7,6 +7,7 @@ package generated
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/google/uuid"
 )
@@ -73,6 +74,7 @@ SELECT
     u.id,
     u.username,
     u.is_verified,
+    u.role,
     p.display_name,
     p.bio,
     p.avatar_url,
@@ -82,20 +84,20 @@ SELECT
 FROM users u
 JOIN profiles p ON p.user_id = u.id
 WHERE u.username = $1
-  AND u.status = 'ACTIVE'
-  OR u.staus = 'ON_BOARDING'
+  AND u.status IN ('ACTIVE', 'ON_BOARDING')
 `
 
 type GetPublicProfileByUsernameRow struct {
-	ID          uuid.UUID `json:"id"`
-	Username    string    `json:"username"`
-	IsVerified  bool      `json:"is_verified"`
-	DisplayName *string   `json:"display_name"`
-	Bio         *string   `json:"bio"`
-	AvatarUrl   *string   `json:"avatar_url"`
-	BannerUrl   *string   `json:"banner_url"`
-	SocialLinks []byte    `json:"social_links"`
-	CosplayTags []string  `json:"cosplay_tags"`
+	ID          uuid.UUID       `json:"id"`
+	Username    string          `json:"username"`
+	IsVerified  bool            `json:"is_verified"`
+	Role        UserRole        `json:"role"`
+	DisplayName *string         `json:"display_name"`
+	Bio         *string         `json:"bio"`
+	AvatarUrl   *string         `json:"avatar_url"`
+	BannerUrl   *string         `json:"banner_url"`
+	SocialLinks json.RawMessage `json:"social_links"`
+	CosplayTags []string        `json:"cosplay_tags"`
 }
 
 // Buat halaman profil publik (/u/{username}).
@@ -107,6 +109,7 @@ func (q *Queries) GetPublicProfileByUsername(ctx context.Context, username strin
 		&i.ID,
 		&i.Username,
 		&i.IsVerified,
+		&i.Role,
 		&i.DisplayName,
 		&i.Bio,
 		&i.AvatarUrl,
@@ -122,6 +125,7 @@ SELECT
     u.id,
     u.username,
     u.status,
+    u.role,
     u.is_verified,
     p.display_name,
     p.bio,
@@ -135,16 +139,17 @@ WHERE u.id = $1
 `
 
 type GetUserWithProfileByIDRow struct {
-	ID          uuid.UUID  `json:"id"`
-	Username    string     `json:"username"`
-	Status      UserStatus `json:"status"`
-	IsVerified  bool       `json:"is_verified"`
-	DisplayName *string    `json:"display_name"`
-	Bio         *string    `json:"bio"`
-	AvatarUrl   *string    `json:"avatar_url"`
-	BannerUrl   *string    `json:"banner_url"`
-	SocialLinks []byte     `json:"social_links"`
-	CosplayTags []string   `json:"cosplay_tags"`
+	ID          uuid.UUID       `json:"id"`
+	Username    string          `json:"username"`
+	Status      UserStatus      `json:"status"`
+	Role        UserRole        `json:"role"`
+	IsVerified  bool            `json:"is_verified"`
+	DisplayName *string         `json:"display_name"`
+	Bio         *string         `json:"bio"`
+	AvatarUrl   *string         `json:"avatar_url"`
+	BannerUrl   *string         `json:"banner_url"`
+	SocialLinks json.RawMessage `json:"social_links"`
+	CosplayTags []string        `json:"cosplay_tags"`
 }
 
 // Gak filter status di sini karena dipakai buat user itu sendiri, bukan publik.
@@ -155,6 +160,7 @@ func (q *Queries) GetUserWithProfileByID(ctx context.Context, id uuid.UUID) (Get
 		&i.ID,
 		&i.Username,
 		&i.Status,
+		&i.Role,
 		&i.IsVerified,
 		&i.DisplayName,
 		&i.Bio,
@@ -178,11 +184,11 @@ RETURNING user_id, display_name, bio, avatar_url, banner_url, social_links, cosp
 `
 
 type UpdateProfileParams struct {
-	DisplayName *string   `json:"display_name"`
-	Bio         *string   `json:"bio"`
-	SocialLinks []byte    `json:"social_links"`
-	CosplayTags []string  `json:"cosplay_tags"`
-	UserID      uuid.UUID `json:"user_id"`
+	DisplayName *string         `json:"display_name"`
+	Bio         *string         `json:"bio"`
+	SocialLinks json.RawMessage `json:"social_links"`
+	CosplayTags []string        `json:"cosplay_tags"`
+	UserID      uuid.UUID       `json:"user_id"`
 }
 
 func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) (Profile, error) {

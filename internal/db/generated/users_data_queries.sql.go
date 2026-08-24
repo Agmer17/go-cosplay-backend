@@ -7,9 +7,9 @@ package generated
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createUser = `-- name: CreateUser :one
@@ -57,28 +57,6 @@ WHERE id = $1
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Username,
-		&i.Status,
-		&i.StatusReason,
-		&i.StatusUntil,
-		&i.Role,
-		&i.IsVerified,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, status, status_reason, status_until, role, is_verified, created_at, updated_at FROM users
-WHERE username = $1
-`
-
-func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByUsername, username)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -219,10 +197,10 @@ RETURNING id, username, status, status_reason, status_until, role, is_verified, 
 `
 
 type UpdateUserStatusParams struct {
-	Status       UserStatus         `json:"status"`
-	StatusReason *string            `json:"status_reason"`
-	StatusUntil  pgtype.Timestamptz `json:"status_until"`
-	ID           uuid.UUID          `json:"id"`
+	Status       UserStatus `json:"status"`
+	StatusReason *string    `json:"status_reason"`
+	StatusUntil  time.Time  `json:"status_until"`
+	ID           uuid.UUID  `json:"id"`
 }
 
 // Dipanggil dari moderation service tiap kali ada moderation_action baru
