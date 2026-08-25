@@ -17,21 +17,30 @@ sql:
           - db_type: "uuid"
             go_type: "github.com/google/uuid.UUID"
 
-          # --- WAKTU / TIMESTAMPS ---
-          # (Mencakup penulisan spesifik maupun alias)
+          # --- WAKTU / TIMESTAMPS --
           - db_type: "timestamptz"
-            go_type: "time.Time"
-          
+            go_type:
+              import: "time"
+              type: "Time"
+
           - db_type: "timestamptz"
             nullable: true
-            go_type: "time.Time"
+            go_type:
+              import: "time"
+              type: "Time"
+              pointer: true
+          
+          - db_type: "timestamp"
+            go_type:
+              import: "time"
+              type: "Time"
 
           - db_type: "timestamp"
-            go_type: "time.Time"
-          
-          - db_type: "timestamp"
             nullable: true
-            go_type: "time.Time"
+            go_type:
+              import: "time"
+              type: "Time"
+              pointer: true
 
           - db_type: "date"
             go_type: "time.Time"

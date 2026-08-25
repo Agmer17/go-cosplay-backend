@@ -31,6 +31,10 @@ func (ah *AuthHandler) HandleGoogleLogin(c *gin.Context) {
 
 func (ah *AuthHandler) HandleGoogleCallback(c *gin.Context) {
 	code := c.Query("code")
+	if code == "" {
+		c.JSON(400, shared.NewErrorResponse(400, "please provide a valid code exchange"))
+		return
+	}
 
 	sessionToken, err := ah.service.AuthenticateGoogleLogin(c.Request.Context(), code)
 	if err != nil {
@@ -58,11 +62,24 @@ func (ah *AuthHandler) HandleGoogleCallback(c *gin.Context) {
 	c.JSON(200, shared.NewSuccessResponse(200, "successfully login with google", sessionToken))
 }
 
+func (ah *AuthHandler) HandleLogout(c *gin.Context) {
+	access, err := c.Cookie("access_token")
+	if err != nil {
+		c.JSON(403, shared.NewErrorResponse(403, "you need to login to access this feature"))
+		return
+	}
+
+	ah.service.RevokeSessions(c.Request.Context(), access)
+	c.SetCookie("access_token", "", -1, "/", "localhost", false, true)
+
+}
+
 func (ah *AuthHandler) RegisterRoutes(r gin.IRouter) {
 	auth := r.Group("/auth")
 	{
 		auth.GET("/login/google", ah.HandleGoogleLogin)
 		auth.GET("/google", ah.HandleGoogleCallback)
+		auth.GET("/logout", ah.HandleLogout)
 	}
 
 	// privateAuth := auth.Group("/")

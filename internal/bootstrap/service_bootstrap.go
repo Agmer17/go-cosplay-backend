@@ -23,12 +23,14 @@ type serviceConfigsParams struct {
 func NewServiceConfigs(env serviceConfigsParams) *serviceConfigs {
 
 	storage := storage.NewFileStorage(10)
+	cachingConfigs := NewCacheConfigs(env.redisCli)
 
 	authSvc := *auth.NewAuthService(&auth.CreateAuthServiceParams{
 		GoogleAuthId: env.GoogleOauthId,
 		GoogleSecret: env.GoogleOauthSecret,
-		RedisClient:  env.redisCli,
 		Database:     env.Database,
+		AuthSession:  cachingConfigs.sessionStore,
+		UserCache:    cachingConfigs.usersDataCache,
 	})
 
 	usersService := users.NewUsersService(env.Database, storage)

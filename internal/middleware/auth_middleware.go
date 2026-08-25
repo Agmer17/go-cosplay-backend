@@ -34,7 +34,6 @@ func (mw *Middleware) HydrateUserContext() gin.HandlerFunc {
 		}
 
 		c.Set(CurrentUserId, data.UserId)
-		c.Set(CurrentUserRole, data.Role)
 		c.Next()
 	}
 }

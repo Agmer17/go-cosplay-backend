@@ -157,7 +157,7 @@ type User struct {
 	Username     string     `json:"username"`
 	Status       UserStatus `json:"status"`
 	StatusReason *string    `json:"status_reason"`
-	StatusUntil  time.Time  `json:"status_until"`
+	StatusUntil  *time.Time `json:"status_until"`
 	Role         UserRole   `json:"role"`
 	IsVerified   bool       `json:"is_verified"`
 	CreatedAt    time.Time  `json:"created_at"`
@@ -169,5 +169,5 @@ type UsersAuth struct {
 	Provider       AuthProvider `json:"provider"`
 	ProviderOpenid string       `json:"provider_openid"`
 	Email          string       `json:"email"`
-	CreatedAt      time.Time    `json:"created_at"`
+	CreatedAt      *time.Time   `json:"created_at"`
 }

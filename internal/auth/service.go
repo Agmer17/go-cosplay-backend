@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/Agmer17/go-cosplay-backend/internal/db"
 	"github.com/Agmer17/go-cosplay-backend/internal/db/generated"
@@ -12,22 +14,34 @@ import (
 	"github.com/Agmer17/go-cosplay-backend/internal/utils"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/redis/go-redis/v9"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
 
+const loginSessionExpireTime = 7 * 24 * time.Hour
+
+type AuthSessionStore interface {
+	IssueSession(ctx context.Context, sess *shared.SessionsData, ttl time.Duration) error
+	RevokeSession(ctx context.Context, key string) error
+}
+
+type UserDataRedisStore interface {
+	Cache(ctx context.Context, data shared.UserCredential) error
+}
+
 type AuthService struct {
-	database    *db.Database
-	oauthConfig *oauth2.Config
-	rdb         *redis.Client
+	database      *db.Database
+	oauthConfig   *oauth2.Config
+	sessionStore  AuthSessionStore
+	userDataCache UserDataRedisStore
 }
 
 type CreateAuthServiceParams struct {
 	GoogleAuthId string
 	GoogleSecret string
 	Database     *db.Database
-	RedisClient  *redis.Client
+	AuthSession  AuthSessionStore
+	UserCache    UserDataRedisStore
 }
 
 func NewAuthService(params *CreateAuthServiceParams) *AuthService {
@@ -40,7 +54,8 @@ func NewAuthService(params *CreateAuthServiceParams) *AuthService {
 			Scopes:       []string{"email", "profile", "openid"},
 			Endpoint:     google.Endpoint,
 		},
-		rdb: params.RedisClient,
+		sessionStore:  params.AuthSession,
+		userDataCache: params.UserCache,
 	}
 }
 
@@ -90,10 +105,16 @@ func (as *AuthService) AuthenticateGoogleLogin(ctx context.Context, code string)
 	if err == nil {
 		currentUser, getUserErr := as.database.Query.GetUserByID(ctx, existingData.ID)
 		if getUserErr != nil {
+			fmt.Println("ERROR : ", getUserErr)
 			return "", shared.NewErrorResponse(500, "something wrong with the server right now, please try again another time")
 		}
 
-		return as.issueSession(ctx, existingData.ID, currentUser.Role, currentUser.Status)
+		as.userDataCache.Cache(ctx, shared.UserCredential{
+			UserId: currentUser.ID,
+			Status: string(currentUser.Status),
+			Role:   string(currentUser.Role),
+		})
+		return as.issueSession(ctx, existingData.ID)
 	}
 
 	if !errors.Is(err, pgx.ErrNoRows) {
@@ -140,15 +161,21 @@ func (as *AuthService) AuthenticateGoogleLogin(ctx context.Context, code string)
 		return nil
 	})
 
-	token, sessErr := as.issueSession(ctx, createdUser.ID, createdUser.Role, createdUser.Status)
+	token, sessErr := as.issueSession(ctx, createdUser.ID)
 	if sessErr != nil {
 		return "", sessErr
 	}
 
+	as.userDataCache.Cache(ctx, shared.UserCredential{
+		UserId: createdUser.ID,
+		Status: string(createdUser.Status),
+		Role:   string(createdUser.Role),
+	})
+
 	return token, nil
 }
 
-func (as *AuthService) issueSession(ctx context.Context, userID uuid.UUID, role generated.UserRole, status generated.UserStatus) (string, *shared.ErrorResponse) {
+func (as *AuthService) issueSession(ctx context.Context, userID uuid.UUID) (string, *shared.ErrorResponse) {
 	token, err := utils.GenerateSecureString(32)
 	if err != nil {
 		return "", shared.NewErrorResponse(500, "failed to generate token")
@@ -157,11 +184,9 @@ func (as *AuthService) issueSession(ctx context.Context, userID uuid.UUID, role 
 	sess := shared.SessionsData{
 		SessionId: token,
 		UserId:    userID,
-		Role:      string(role),
-		Status:    string(status),
 	}
 
-	if err := as.CreateSessions(ctx, sess); err != nil {
+	if err := as.sessionStore.IssueSession(ctx, &sess, loginSessionExpireTime); err != nil {
 		return "", shared.NewErrorResponse(500, "something went wrong with the server")
 	}
 
@@ -169,5 +194,11 @@ func (as *AuthService) issueSession(ctx context.Context, userID uuid.UUID, role 
 }
 
 func (as *AuthService) RevokeSessions(ctx context.Context, token string) *shared.ErrorResponse {
-	return as.ExpireSessions(ctx, token)
+	err := as.sessionStore.RevokeSession(ctx, token)
+
+	if err != nil {
+		return shared.NewErrorResponse(500, "something wrong while trying to remove your session, please try again another time")
+	}
+
+	return nil
 }

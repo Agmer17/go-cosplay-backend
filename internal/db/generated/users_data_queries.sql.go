@@ -199,7 +199,7 @@ RETURNING id, username, status, status_reason, status_until, role, is_verified, 
 type UpdateUserStatusParams struct {
 	Status       UserStatus `json:"status"`
 	StatusReason *string    `json:"status_reason"`
-	StatusUntil  time.Time  `json:"status_until"`
+	StatusUntil  *time.Time `json:"status_until"`
 	ID           uuid.UUID  `json:"id"`
 }
 
