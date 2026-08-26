@@ -18,19 +18,19 @@ type serviceConfigsParams struct {
 	GoogleOauthSecret string
 	redisCli          *redis.Client
 	Database          *db.Database
+	cacheConfigs      *CacheConfigs
 }
 
 func NewServiceConfigs(env serviceConfigsParams) *serviceConfigs {
 
 	storage := storage.NewFileStorage(10)
-	cachingConfigs := NewCacheConfigs(env.redisCli)
 
 	authSvc := *auth.NewAuthService(&auth.CreateAuthServiceParams{
 		GoogleAuthId: env.GoogleOauthId,
 		GoogleSecret: env.GoogleOauthSecret,
 		Database:     env.Database,
-		AuthSession:  cachingConfigs.sessionStore,
-		UserCache:    cachingConfigs.usersDataCache,
+		AuthSession:  env.cacheConfigs.sessionStore,
+		UserCache:    env.cacheConfigs.usersDataCache,
 	})
 
 	usersService := users.NewUsersService(env.Database, storage)

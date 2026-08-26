@@ -2,8 +2,10 @@ package users
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"mime/multipart"
+	"strings"
 
 	"github.com/Agmer17/go-cosplay-backend/internal/db"
 	"github.com/Agmer17/go-cosplay-backend/internal/db/generated"
@@ -29,6 +31,23 @@ func NewUsersService(db *db.Database, storage *storage.FileStorage) *UsersServic
 	}
 }
 
+func (us *UsersService) GetUserDataWithProfileByID(ctx context.Context, id uuid.UUID) (generated.GetUserWithProfileByIDRow, *shared.ErrorResponse) {
+
+	data, err := us.database.Query.GetUserWithProfileByID(ctx, id)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return generated.GetUserWithProfileByIDRow{}, shared.NewErrorResponse(404, "account not found")
+		}
+
+		return generated.GetUserWithProfileByIDRow{}, shared.NewErrorResponse(500, "something wrong with the server")
+
+	}
+
+	return data, nil
+
+}
+
 func (us *UsersService) GetUsersDataWithProfilesByUsername(
 	ctx context.Context, username string) (generated.GetPublicProfileByUsernameRow,
 	*shared.ErrorResponse) {
@@ -46,14 +65,18 @@ func (us *UsersService) GetUsersDataWithProfilesByUsername(
 
 func (us *UsersService) UpdateUsersProfilesById(ctx context.Context, id uuid.UUID, dto UpdateProfilesDto) (generated.Profile, *shared.ErrorResponse) {
 
+	var socialLinks json.RawMessage
+	if dto.SocialLinks != nil {
+		socialLinks = *dto.SocialLinks
+	}
+
 	newData, err := us.database.Query.UpdateProfile(ctx, generated.UpdateProfileParams{
 		DisplayName: dto.DisplayName,
 		Bio:         dto.Bio,
-		SocialLinks: *dto.SocialLinks,
+		SocialLinks: socialLinks,
 		CosplayTags: dto.CosplayTags,
 		UserID:      id,
 	})
-
 	if err != nil {
 
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -69,6 +92,14 @@ func (us *UsersService) UpdateUsersProfilesById(ctx context.Context, id uuid.UUI
 }
 
 func (us *UsersService) UpdateProfilePicture(ctx context.Context, id uuid.UUID, file *multipart.FileHeader) (string, *shared.ErrorResponse) {
+	oldData, err := us.database.Query.GetProfileByUserID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", shared.NewErrorResponse(404, "account was not found")
+
+		}
+		return "", shared.NewErrorResponse(500, "something wrong while trying to save files! please try again another time")
+	}
 
 	saved, _, err := us.serverStorage.SavePublicFile(file, avatarFolder)
 	if err != nil {
@@ -83,7 +114,6 @@ func (us *UsersService) UpdateProfilePicture(ctx context.Context, id uuid.UUID, 
 	})
 
 	if uptErr != nil {
-
 		// edge case kalo akun keburu ilang tapi somehow sessionnya masih ada
 		if errors.Is(uptErr, pgx.ErrNoRows) {
 			return "", shared.NewErrorResponse(404, "account was not found")
@@ -92,6 +122,11 @@ func (us *UsersService) UpdateProfilePicture(ctx context.Context, id uuid.UUID, 
 
 		us.serverStorage.DeletePublicFile(saved, avatarFolder)
 		return "", shared.NewErrorResponse(500, "something wrong while trying to updating data! please try again another time")
+	}
+
+	if !strings.HasPrefix(*oldData.AvatarUrl, "https://") {
+		filename := strings.Split(*oldData.AvatarUrl, "/")
+		us.serverStorage.DeletePublicFile(filename[1], avatarFolder)
 	}
 
 	return avatarUrl, nil
@@ -159,6 +194,61 @@ func (us *UsersService) UpdateUsername(ctx context.Context, id uuid.UUID, newUse
 	return updated.Username, nil
 }
 
-func (us *UsersService) SubmitOnBoarding(ctx context.Context, id uuid.UUID, username string) *shared.ErrorResponse {
-	return nil
+func (us *UsersService) SubmitOnBoarding(ctx context.Context,
+	id uuid.UUID,
+	username string) (generated.GetPublicProfileByUsernameRow, *shared.ErrorResponse) {
+
+	oldData, err := us.database.Query.GetUserWithProfileByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return generated.GetPublicProfileByUsernameRow{}, shared.NewErrorResponse(404, "account not found")
+		}
+
+		return generated.GetPublicProfileByUsernameRow{},
+			shared.NewErrorResponse(500,
+				"something wrong with the server right now! please try again another time")
+	}
+
+	if oldData.Status != generated.UserStatusONBOARDING {
+		return generated.GetPublicProfileByUsernameRow{},
+			shared.NewErrorResponse(409, "you can't submit onboarding!")
+	}
+
+	exist, err := us.database.Query.IsUsernameTaken(ctx, username)
+	if err != nil {
+		return generated.GetPublicProfileByUsernameRow{},
+			shared.NewErrorResponse(500,
+				"something wrong with the server right now! please try again another time")
+	}
+
+	if exist {
+		return generated.GetPublicProfileByUsernameRow{},
+			shared.NewErrorResponse(409, "username already exist")
+	}
+
+	uptErr := us.database.Query.UpdateOnBoarding(ctx, generated.UpdateOnBoardingParams{
+		Username: username,
+		ID:       id,
+	})
+
+	if uptErr != nil {
+		return generated.GetPublicProfileByUsernameRow{},
+			shared.NewErrorResponse(500,
+				"something went wrong in onboarding process please try again another time!")
+	}
+
+	respData := generated.GetPublicProfileByUsernameRow{
+		ID:          id,
+		Username:    username,
+		IsVerified:  oldData.IsVerified,
+		Role:        oldData.Role,
+		DisplayName: oldData.DisplayName,
+		Bio:         oldData.Bio,
+		AvatarUrl:   oldData.AvatarUrl,
+		BannerUrl:   oldData.BannerUrl,
+		SocialLinks: oldData.SocialLinks,
+		CosplayTags: oldData.CosplayTags,
+	}
+
+	return respData, nil
 }

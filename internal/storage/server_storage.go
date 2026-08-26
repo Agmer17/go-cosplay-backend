@@ -185,7 +185,7 @@ func (storage *FileStorage) saveFile(basePath string, fileHeader *multipart.File
 		return "", "", err
 	}
 
-	filename, err := utils.GenerateSecureString(40)
+	filename, err := utils.GenerateSecureString(32)
 	if err != nil {
 		return "", "", err
 	}

@@ -35,3 +35,15 @@ func (ss *SessionStore) RevokeSession(ctx context.Context, key string) error {
 
 	return nil
 }
+
+func (ss *SessionStore) GetSession(ctx context.Context, token string) (shared.SessionsData, error) {
+
+	key := "sessions:" + token
+
+	data, err := utils.RedisGetStringObject[shared.SessionsData](ctx, ss.rdb, key)
+	if err != nil {
+		return shared.SessionsData{}, err
+	}
+
+	return *data, nil
+}

@@ -150,7 +150,7 @@ func (as *AuthService) AuthenticateGoogleLogin(ctx context.Context, code string)
 
 		_, err = q.CreateProfile(ctx, generated.CreateProfileParams{
 			UserID:      userData.ID,
-			DisplayName: &googleUser.GivenName,
+			DisplayName: &googleUser.Name,
 			AvatarUrl:   &googleUser.Picture,
 		})
 

@@ -71,6 +71,7 @@ func (ah *AuthHandler) HandleLogout(c *gin.Context) {
 
 	ah.service.RevokeSessions(c.Request.Context(), access)
 	c.SetCookie("access_token", "", -1, "/", "localhost", false, true)
+	c.JSON(200, shared.NewSuccessResponse(200, "successfully logout!", nil))
 
 }
 

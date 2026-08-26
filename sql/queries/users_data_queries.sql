@@ -29,6 +29,13 @@ SET username = sqlc.arg(username),
 WHERE id = sqlc.arg(id)
 RETURNING *;
 
+-- name: UpdateOnBoarding :exec
+UPDATE users
+SET username = sqlc.arg(username),
+    updated_at = now(),
+    status = 'ACTIVE'
+WHERE id = sqlc.arg(id)
+RETURNING *;
 -- name: UpdateUserStatus :one
 -- Dipanggil dari moderation service tiap kali ada moderation_action baru
 -- (suspend/ban/reinstate). status_reason & status_until nullable karena

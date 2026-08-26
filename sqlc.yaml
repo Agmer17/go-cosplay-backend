@@ -57,15 +57,19 @@ sql:
           # Sangat umum digunakan di Postgres. Menggunakan json.RawMessage
           # lebih baik daripada string agar validasi JSON terjaga.
           - db_type: "jsonb"
-            go_type: "encoding/json.RawMessage"
-            
-          - db_type: "json"
-            go_type: "encoding/json.RawMessage"
+            nullable: true
+            go_type:
+              import: "encoding/json"
+              type: "RawMessage"
 
           - db_type: "jsonb"
-            nullable: true
-            go_type: "encoding/json.RawMessage"
+            go_type:
+              import: "encoding/json"
+              type: "RawMessage"
 
           - db_type: "json"
             nullable: true
+            go_type: "encoding/json.RawMessage"
+          
+          - db_type: "json"
             go_type: "encoding/json.RawMessage"

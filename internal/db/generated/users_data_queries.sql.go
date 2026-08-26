@@ -186,6 +186,25 @@ func (q *Queries) SetUserVerified(ctx context.Context, arg SetUserVerifiedParams
 	return err
 }
 
+const updateOnBoarding = `-- name: UpdateOnBoarding :exec
+UPDATE users
+SET username = $1,
+    updated_at = now(),
+    status = 'ACTIVE'
+WHERE id = $2
+RETURNING id, username, status, status_reason, status_until, role, is_verified, created_at, updated_at
+`
+
+type UpdateOnBoardingParams struct {
+	Username string    `json:"username"`
+	ID       uuid.UUID `json:"id"`
+}
+
+func (q *Queries) UpdateOnBoarding(ctx context.Context, arg UpdateOnBoardingParams) error {
+	_, err := q.db.Exec(ctx, updateOnBoarding, arg.Username, arg.ID)
+	return err
+}
+
 const updateUserStatus = `-- name: UpdateUserStatus :one
 UPDATE users
 SET status = $1,

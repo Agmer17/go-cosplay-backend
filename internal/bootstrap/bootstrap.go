@@ -7,6 +7,8 @@ import (
 
 	"github.com/Agmer17/go-cosplay-backend/internal/auth"
 	"github.com/Agmer17/go-cosplay-backend/internal/db"
+	"github.com/Agmer17/go-cosplay-backend/internal/middleware"
+	"github.com/Agmer17/go-cosplay-backend/internal/users"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 )
@@ -34,6 +36,8 @@ type App struct {
 	Database       *db.Database
 	RedisClient    *redis.Client
 	ServiceConfigs *serviceConfigs
+
+	Middleware *middleware.AuthMiddleware
 }
 
 func NewApp(configs Configs, rtr *gin.Engine) *App {
@@ -42,12 +46,14 @@ func NewApp(configs Configs, rtr *gin.Engine) *App {
 	redisClient := redis.NewClient(opt)
 
 	database := db.NewDatabase(configs.DatabaseUrl, configs.AppContext)
+	cacheConf := NewCacheConfigs(redisClient)
 
 	serviceConfigs := NewServiceConfigs(serviceConfigsParams{
 		GoogleOauthId:     configs.GoogleOauthClientId,
 		GoogleOauthSecret: configs.GoogleOauthSecret,
 		redisCli:          redisClient,
 		Database:          database,
+		cacheConfigs:      cacheConf,
 	})
 
 	return &App{
@@ -55,6 +61,7 @@ func NewApp(configs Configs, rtr *gin.Engine) *App {
 		Database:       database,
 		ServiceConfigs: serviceConfigs,
 		RedisClient:    redisClient,
+		Middleware:     middleware.NewAuthMiddleware(cacheConf.sessionStore, cacheConf.usersDataCache),
 	}
 
 }
@@ -64,13 +71,17 @@ type BootstrapHandler interface {
 }
 
 func (app *App) SetupRoutes() {
-
 	// create something in here
 	authHandler := auth.NewAuthHandler(app.ServiceConfigs.AuthService)
+	userHandler := users.NewUserHandler(app.ServiceConfigs.UserService, app.Middleware)
 
-	var hs []BootstrapHandler = []BootstrapHandler{authHandler}
+	var hs []BootstrapHandler = []BootstrapHandler{
+		authHandler,
+		userHandler,
+	}
 
 	api := app.Router.Group("/api")
+	api.Use(app.Middleware.HydrateUserContext())
 	for _, h := range hs {
 		h.RegisterRoutes(api)
 	}
