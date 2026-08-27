@@ -74,15 +74,12 @@ func (ps *PostsService) CreatePosts(ctx context.Context, userId uuid.UUID, dto C
 		medUrls[i] = posts_folder + "/" + medFilenames[i]
 		mediaOrders[i] = int16(i)
 	}
-
-	// 1. Siapkan penampung untuk menangkap data hasil eksekusi dari database
-	var createdPost generated.Post           // Asumsi nama struct dari sqlc adalah 'Post'
-	var createdMedia []generated.PostsMedium // Asumsi struct array dari tabel media
+	var createdPost generated.Post
+	var createdMedia []generated.PostsMedium
 
 	psErr := ps.db.Transaction(ctx, func(qtx *generated.Queries) error {
 		var txErr error
 
-		// 2. Jangan pakai '_', tangkap data hasil buatannya
 		createdPost, txErr = qtx.CreatePost(ctx, generated.CreatePostParams{
 			ID:         postId,
 			UserID:     userId,
@@ -109,15 +106,13 @@ func (ps *PostsService) CreatePosts(ctx context.Context, userId uuid.UUID, dto C
 
 	if psErr != nil {
 		ps.serverStorage.DeleteAllPrivateFiles(medFilenames, posts_folder)
-		// LOG INI SANGAT PENTING BIAR KAMU TAU PENYEBAB 500-NYA
 		fmt.Printf("DB Transaction failed on CreatePosts: %v\n", psErr)
 		return generated.GetPostByIDRow{}, shared.NewErrorResponse(500, "cannot save the posts data")
 	}
 
-	// 3. Skip query ulang, langsung rakit JSON media dan bangun response
 	mediaBytes, err := json.Marshal(createdMedia)
 	if err != nil {
-		mediaBytes = []byte("[]") // fallback
+		mediaBytes = []byte("[]")
 	}
 
 	return generated.GetPostByIDRow{
