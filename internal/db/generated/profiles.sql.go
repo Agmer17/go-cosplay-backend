@@ -75,6 +75,7 @@ SELECT
     u.username,
     u.is_verified,
     u.role,
+    u.account_visibility,
     p.display_name,
     p.bio,
     p.avatar_url,
@@ -88,16 +89,17 @@ WHERE u.username = $1
 `
 
 type GetPublicProfileByUsernameRow struct {
-	ID          uuid.UUID       `json:"id"`
-	Username    string          `json:"username"`
-	IsVerified  bool            `json:"is_verified"`
-	Role        UserRole        `json:"role"`
-	DisplayName *string         `json:"display_name"`
-	Bio         *string         `json:"bio"`
-	AvatarUrl   *string         `json:"avatar_url"`
-	BannerUrl   *string         `json:"banner_url"`
-	SocialLinks json.RawMessage `json:"social_links"`
-	CosplayTags []string        `json:"cosplay_tags"`
+	ID                uuid.UUID       `json:"id"`
+	Username          string          `json:"username"`
+	IsVerified        bool            `json:"is_verified"`
+	Role              UserRole        `json:"role"`
+	AccountVisibility UsersVisibility `json:"account_visibility"`
+	DisplayName       *string         `json:"display_name"`
+	Bio               *string         `json:"bio"`
+	AvatarUrl         *string         `json:"avatar_url"`
+	BannerUrl         *string         `json:"banner_url"`
+	SocialLinks       json.RawMessage `json:"social_links"`
+	CosplayTags       []string        `json:"cosplay_tags"`
 }
 
 // Buat halaman profil publik (/u/{username}).
@@ -110,6 +112,7 @@ func (q *Queries) GetPublicProfileByUsername(ctx context.Context, username strin
 		&i.Username,
 		&i.IsVerified,
 		&i.Role,
+		&i.AccountVisibility,
 		&i.DisplayName,
 		&i.Bio,
 		&i.AvatarUrl,
@@ -127,6 +130,7 @@ SELECT
     u.status,
     u.role,
     u.is_verified,
+    u.account_visibility,
     p.display_name,
     p.bio,
     p.avatar_url,
@@ -139,17 +143,18 @@ WHERE u.id = $1
 `
 
 type GetUserWithProfileByIDRow struct {
-	ID          uuid.UUID       `json:"id"`
-	Username    string          `json:"username"`
-	Status      UserStatus      `json:"status"`
-	Role        UserRole        `json:"role"`
-	IsVerified  bool            `json:"is_verified"`
-	DisplayName *string         `json:"display_name"`
-	Bio         *string         `json:"bio"`
-	AvatarUrl   *string         `json:"avatar_url"`
-	BannerUrl   *string         `json:"banner_url"`
-	SocialLinks json.RawMessage `json:"social_links"`
-	CosplayTags []string        `json:"cosplay_tags"`
+	ID                uuid.UUID       `json:"id"`
+	Username          string          `json:"username"`
+	Status            UserStatus      `json:"status"`
+	Role              UserRole        `json:"role"`
+	IsVerified        bool            `json:"is_verified"`
+	AccountVisibility UsersVisibility `json:"account_visibility"`
+	DisplayName       *string         `json:"display_name"`
+	Bio               *string         `json:"bio"`
+	AvatarUrl         *string         `json:"avatar_url"`
+	BannerUrl         *string         `json:"banner_url"`
+	SocialLinks       json.RawMessage `json:"social_links"`
+	CosplayTags       []string        `json:"cosplay_tags"`
 }
 
 // Gak filter status di sini karena dipakai buat user itu sendiri, bukan publik.
@@ -162,6 +167,7 @@ func (q *Queries) GetUserWithProfileByID(ctx context.Context, id uuid.UUID) (Get
 		&i.Status,
 		&i.Role,
 		&i.IsVerified,
+		&i.AccountVisibility,
 		&i.DisplayName,
 		&i.Bio,
 		&i.AvatarUrl,

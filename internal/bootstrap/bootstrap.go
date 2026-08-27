@@ -8,6 +8,7 @@ import (
 	"github.com/Agmer17/go-cosplay-backend/internal/auth"
 	"github.com/Agmer17/go-cosplay-backend/internal/db"
 	"github.com/Agmer17/go-cosplay-backend/internal/middleware"
+	"github.com/Agmer17/go-cosplay-backend/internal/posts"
 	"github.com/Agmer17/go-cosplay-backend/internal/users"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -74,10 +75,12 @@ func (app *App) SetupRoutes() {
 	// create something in here
 	authHandler := auth.NewAuthHandler(app.ServiceConfigs.AuthService)
 	userHandler := users.NewUserHandler(app.ServiceConfigs.UserService, app.Middleware)
+	postsHandler := posts.NewPostsHandler(app.ServiceConfigs.PostsService, app.Middleware)
 
 	var hs []BootstrapHandler = []BootstrapHandler{
 		authHandler,
 		userHandler,
+		postsHandler,
 	}
 
 	api := app.Router.Group("/api")

@@ -3,14 +3,16 @@ package bootstrap
 import (
 	"github.com/Agmer17/go-cosplay-backend/internal/auth"
 	"github.com/Agmer17/go-cosplay-backend/internal/db"
+	"github.com/Agmer17/go-cosplay-backend/internal/posts"
 	"github.com/Agmer17/go-cosplay-backend/internal/storage"
 	"github.com/Agmer17/go-cosplay-backend/internal/users"
 	"github.com/redis/go-redis/v9"
 )
 
 type serviceConfigs struct {
-	AuthService *auth.AuthService
-	UserService *users.UsersService
+	AuthService  *auth.AuthService
+	UserService  *users.UsersService
+	PostsService *posts.PostsService
 }
 
 type serviceConfigsParams struct {
@@ -35,9 +37,12 @@ func NewServiceConfigs(env serviceConfigsParams) *serviceConfigs {
 
 	usersService := users.NewUsersService(env.Database, storage)
 
+	postsService := posts.NewPostsService(env.Database, storage)
+
 	return &serviceConfigs{
-		AuthService: &authSvc,
-		UserService: usersService,
+		AuthService:  &authSvc,
+		UserService:  usersService,
+		PostsService: postsService,
 	}
 
 }

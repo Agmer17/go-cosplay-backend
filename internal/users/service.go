@@ -252,3 +252,13 @@ func (us *UsersService) SubmitOnBoarding(ctx context.Context,
 
 	return respData, nil
 }
+
+func (us *UsersService) IsUsernameAvaible(ctx context.Context, username string) (bool, *shared.ErrorResponse) {
+
+	ex, err := us.database.Query.IsUsernameTaken(ctx, username)
+	if err != nil {
+		return false, shared.NewErrorResponse(500, "something wrong with the server! please try again later")
+	}
+
+	return ex, nil
+}

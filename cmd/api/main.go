@@ -17,11 +17,13 @@ func main() {
 	mainRouter.Use(gin.Recovery())
 
 	app := bootstrap.NewApp(appConfigs, mainRouter)
+
 	app.SetupRoutes()
-	app.Run()
 
 	defer app.Database.Pool.Close()
 	defer app.RedisClient.Close()
+
+	app.Run()
 
 	println("success init")
 

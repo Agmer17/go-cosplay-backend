@@ -23,7 +23,7 @@ VALUES (
     $2,
     $3
     )
-RETURNING id, username, status, status_reason, status_until, role, is_verified, created_at, updated_at
+RETURNING id, username, status, status_reason, status_until, role, account_visibility, is_verified, created_at, updated_at
 `
 
 type CreateUserParams struct {
@@ -43,6 +43,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.StatusReason,
 		&i.StatusUntil,
 		&i.Role,
+		&i.AccountVisibility,
 		&i.IsVerified,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -51,7 +52,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, status, status_reason, status_until, role, is_verified, created_at, updated_at FROM users
+SELECT id, username, status, status_reason, status_until, role, account_visibility, is_verified, created_at, updated_at FROM users
 WHERE id = $1
 `
 
@@ -65,6 +66,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.StatusReason,
 		&i.StatusUntil,
 		&i.Role,
+		&i.AccountVisibility,
 		&i.IsVerified,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -87,7 +89,7 @@ func (q *Queries) IsUsernameTaken(ctx context.Context, username string) (bool, e
 }
 
 const listExpiredSuspensions = `-- name: ListExpiredSuspensions :many
-SELECT id, username, status, status_reason, status_until, role, is_verified, created_at, updated_at FROM users
+SELECT id, username, status, status_reason, status_until, role, account_visibility, is_verified, created_at, updated_at FROM users
 WHERE status != 'ACTIVE'
   AND status_until IS NOT NULL
   AND status_until <= now()
@@ -111,6 +113,7 @@ func (q *Queries) ListExpiredSuspensions(ctx context.Context) ([]User, error) {
 			&i.StatusReason,
 			&i.StatusUntil,
 			&i.Role,
+			&i.AccountVisibility,
 			&i.IsVerified,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -126,7 +129,7 @@ func (q *Queries) ListExpiredSuspensions(ctx context.Context) ([]User, error) {
 }
 
 const listUsersByStatus = `-- name: ListUsersByStatus :many
-SELECT id, username, status, status_reason, status_until, role, is_verified, created_at, updated_at FROM users
+SELECT id, username, status, status_reason, status_until, role, account_visibility, is_verified, created_at, updated_at FROM users
 WHERE status = $1
 ORDER BY created_at DESC
 LIMIT $3 OFFSET $2
@@ -155,6 +158,7 @@ func (q *Queries) ListUsersByStatus(ctx context.Context, arg ListUsersByStatusPa
 			&i.StatusReason,
 			&i.StatusUntil,
 			&i.Role,
+			&i.AccountVisibility,
 			&i.IsVerified,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -192,7 +196,7 @@ SET username = $1,
     updated_at = now(),
     status = 'ACTIVE'
 WHERE id = $2
-RETURNING id, username, status, status_reason, status_until, role, is_verified, created_at, updated_at
+RETURNING id, username, status, status_reason, status_until, role, account_visibility, is_verified, created_at, updated_at
 `
 
 type UpdateOnBoardingParams struct {
@@ -212,7 +216,7 @@ SET status = $1,
     status_until = $3,
     updated_at = now()
 WHERE id = $4
-RETURNING id, username, status, status_reason, status_until, role, is_verified, created_at, updated_at
+RETURNING id, username, status, status_reason, status_until, role, account_visibility, is_verified, created_at, updated_at
 `
 
 type UpdateUserStatusParams struct {
@@ -240,6 +244,7 @@ func (q *Queries) UpdateUserStatus(ctx context.Context, arg UpdateUserStatusPara
 		&i.StatusReason,
 		&i.StatusUntil,
 		&i.Role,
+		&i.AccountVisibility,
 		&i.IsVerified,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -252,7 +257,7 @@ UPDATE users
 SET username = $1,
     updated_at = now()
 WHERE id = $2
-RETURNING id, username, status, status_reason, status_until, role, is_verified, created_at, updated_at
+RETURNING id, username, status, status_reason, status_until, role, account_visibility, is_verified, created_at, updated_at
 `
 
 type UpdateUsernameParams struct {
@@ -270,6 +275,7 @@ func (q *Queries) UpdateUsername(ctx context.Context, arg UpdateUsernameParams) 
 		&i.StatusReason,
 		&i.StatusUntil,
 		&i.Role,
+		&i.AccountVisibility,
 		&i.IsVerified,
 		&i.CreatedAt,
 		&i.UpdatedAt,

@@ -291,6 +291,11 @@ func (storage *FileStorage) DeleteAllPrivateFiles(files []string, place ...strin
 		storage.deleteFiles(storage.PrivatePath, v, place...)
 	}
 }
+func (storage *FileStorage) DeleteAllPublicFiles(files []string, place ...string) {
+	for _, v := range files {
+		storage.deleteFiles(storage.PublicPath, v, place...)
+	}
+}
 
 func (storage *FileStorage) DeletePublicFile(filename string, place ...string) error {
 	return storage.deleteFiles(storage.PublicPath, filename, place...)

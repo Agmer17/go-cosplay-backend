@@ -1,5 +1,6 @@
 create type user_status as enum ('ACTIVE', 'SUSPENDED', 'DEACTIVATE', 'ON_BOARDING');
 create type user_role as enum ('ADMIN', 'USER');
+create type users_visibility as enum('PUBLIC', 'PRIVATE');
 
 CREATE TABLE users (
     id UUID PRIMARY KEY REFERENCES users_auth(id) ON DELETE CASCADE, 
@@ -8,6 +9,7 @@ CREATE TABLE users (
     status_reason TEXT,
     status_until TIMESTAMPTZ,        
     role user_role NOT NULL DEFAULT 'USER',
+    account_visibility  users_visibility not null default 'PUBLIC',
     is_verified BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

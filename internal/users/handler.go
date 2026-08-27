@@ -177,9 +177,25 @@ func (uh *UserHandler) HandlePostBannerPicture(c *gin.Context) {
 
 }
 
+func (uh *UserHandler) HandleCheckUsername(c *gin.Context) {
+
+	param := c.Param("username")
+
+	data, err := uh.svc.IsUsernameAvaible(c.Request.Context(), param)
+	if err != nil {
+		c.JSON(err.Code, err)
+		return
+	}
+
+	c.JSON(200, shared.NewSuccessResponse(200, "successfully checking the username", data))
+}
+
 func (uh *UserHandler) RegisterRoutes(r gin.IRouter) {
 	users := r.Group("/users")
-	users.GET("/:username", uh.HandleGetUserProfile)
+
+	spec := users.Group("/:username")
+	spec.GET("/", uh.HandleGetUserProfile)
+	spec.GET("/availability", uh.HandleCheckUsername)
 
 	me := r.Group("/me")
 	me.Use(uh.mid.AuthenticatedUserOnly())

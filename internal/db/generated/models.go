@@ -55,6 +55,91 @@ func (ns NullAuthProvider) Value() (driver.Value, error) {
 	return string(ns.AuthProvider), nil
 }
 
+type PostMediaType string
+
+const (
+	PostMediaTypeIMAGE PostMediaType = "IMAGE"
+	PostMediaTypeVIDEO PostMediaType = "VIDEO"
+)
+
+func (e *PostMediaType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PostMediaType(s)
+	case string:
+		*e = PostMediaType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PostMediaType: %T", src)
+	}
+	return nil
+}
+
+type NullPostMediaType struct {
+	PostMediaType PostMediaType `json:"post_media_type"`
+	Valid         bool          `json:"valid"` // Valid is true if PostMediaType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPostMediaType) Scan(value interface{}) error {
+	if value == nil {
+		ns.PostMediaType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PostMediaType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPostMediaType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PostMediaType), nil
+}
+
+type PostVisibility string
+
+const (
+	PostVisibilityPUBLIC    PostVisibility = "PUBLIC"
+	PostVisibilityPRIVATE   PostVisibility = "PRIVATE"
+	PostVisibilityEXCLUSIVE PostVisibility = "EXCLUSIVE"
+)
+
+func (e *PostVisibility) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PostVisibility(s)
+	case string:
+		*e = PostVisibility(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PostVisibility: %T", src)
+	}
+	return nil
+}
+
+type NullPostVisibility struct {
+	PostVisibility PostVisibility `json:"post_visibility"`
+	Valid          bool           `json:"valid"` // Valid is true if PostVisibility is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPostVisibility) Scan(value interface{}) error {
+	if value == nil {
+		ns.PostVisibility, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PostVisibility.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPostVisibility) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PostVisibility), nil
+}
+
 type UserRole string
 
 const (
@@ -141,6 +226,71 @@ func (ns NullUserStatus) Value() (driver.Value, error) {
 	return string(ns.UserStatus), nil
 }
 
+type UsersVisibility string
+
+const (
+	UsersVisibilityPUBLIC  UsersVisibility = "PUBLIC"
+	UsersVisibilityPRIVATE UsersVisibility = "PRIVATE"
+)
+
+func (e *UsersVisibility) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = UsersVisibility(s)
+	case string:
+		*e = UsersVisibility(s)
+	default:
+		return fmt.Errorf("unsupported scan type for UsersVisibility: %T", src)
+	}
+	return nil
+}
+
+type NullUsersVisibility struct {
+	UsersVisibility UsersVisibility `json:"users_visibility"`
+	Valid           bool            `json:"valid"` // Valid is true if UsersVisibility is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullUsersVisibility) Scan(value interface{}) error {
+	if value == nil {
+		ns.UsersVisibility, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.UsersVisibility.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullUsersVisibility) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.UsersVisibility), nil
+}
+
+type Post struct {
+	ID            uuid.UUID      `json:"id"`
+	UserID        uuid.UUID      `json:"user_id"`
+	Caption       *string        `json:"caption"`
+	Location      *string        `json:"location"`
+	Visibility    PostVisibility `json:"visibility"`
+	LikeCount     int32          `json:"like_count"`
+	CommentCount  int32          `json:"comment_count"`
+	BookmarkCount int32          `json:"bookmark_count"`
+	ShareCount    int32          `json:"share_count"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+}
+
+type PostsMedium struct {
+	ID           uuid.UUID     `json:"id"`
+	PostID       uuid.UUID     `json:"post_id"`
+	MediaType    PostMediaType `json:"media_type"`
+	MediaUrl     string        `json:"media_url"`
+	DisplayOrder int16         `json:"display_order"`
+	CreatedAt    time.Time     `json:"created_at"`
+}
+
 type Profile struct {
 	UserID      uuid.UUID       `json:"user_id"`
 	DisplayName *string         `json:"display_name"`
@@ -153,15 +303,16 @@ type Profile struct {
 }
 
 type User struct {
-	ID           uuid.UUID  `json:"id"`
-	Username     string     `json:"username"`
-	Status       UserStatus `json:"status"`
-	StatusReason *string    `json:"status_reason"`
-	StatusUntil  *time.Time `json:"status_until"`
-	Role         UserRole   `json:"role"`
-	IsVerified   bool       `json:"is_verified"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
+	ID                uuid.UUID       `json:"id"`
+	Username          string          `json:"username"`
+	Status            UserStatus      `json:"status"`
+	StatusReason      *string         `json:"status_reason"`
+	StatusUntil       *time.Time      `json:"status_until"`
+	Role              UserRole        `json:"role"`
+	AccountVisibility UsersVisibility `json:"account_visibility"`
+	IsVerified        bool            `json:"is_verified"`
+	CreatedAt         time.Time       `json:"created_at"`
+	UpdatedAt         time.Time       `json:"updated_at"`
 }
 
 type UsersAuth struct {
