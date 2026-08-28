@@ -6,6 +6,12 @@ INSERT INTO posts (
 )
 RETURNING *;
 
+
+-- name: GetPostsDataOnlyById :one
+SELECT * 
+FROM posts
+WHERE id = sqlc.arg(id);
+
 -- name: GetPostByID :one
 SELECT
     p.*,

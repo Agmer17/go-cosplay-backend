@@ -282,3 +282,34 @@ func (q *Queries) UpdateUsername(ctx context.Context, arg UpdateUsernameParams) 
 	)
 	return i, err
 }
+
+const updateUsersAccVisibility = `-- name: UpdateUsersAccVisibility :one
+UPDATE users 
+    SET account_visibility = $1,
+        updated_at = now()
+WHERE id = $2
+RETURNING id, username, status, status_reason, status_until, role, account_visibility, is_verified, created_at, updated_at
+`
+
+type UpdateUsersAccVisibilityParams struct {
+	Visibility UsersVisibility `json:"visibility"`
+	ID         uuid.UUID       `json:"id"`
+}
+
+func (q *Queries) UpdateUsersAccVisibility(ctx context.Context, arg UpdateUsersAccVisibilityParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUsersAccVisibility, arg.Visibility, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Status,
+		&i.StatusReason,
+		&i.StatusUntil,
+		&i.Role,
+		&i.AccountVisibility,
+		&i.IsVerified,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

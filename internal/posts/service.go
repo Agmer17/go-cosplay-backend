@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Agmer17/go-cosplay-backend/internal/db"
 	"github.com/Agmer17/go-cosplay-backend/internal/db/generated"
@@ -13,20 +15,24 @@ import (
 	"github.com/Agmer17/go-cosplay-backend/internal/storage"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/leg100/surl/v2"
 )
 
 const posts_folder = "posts"
+const mediaAccessUrlPrefix = "http://localhost/api/posts/media/"
 
 type PostsService struct {
 	db            *db.Database
 	serverStorage *storage.FileStorage
+	signer        *surl.Signer
 }
 
-func NewPostsService(d *db.Database, sr *storage.FileStorage) *PostsService {
+func NewPostsService(d *db.Database, sr *storage.FileStorage, sn *surl.Signer) *PostsService {
 
 	return &PostsService{
 		db:            d,
 		serverStorage: sr,
+		signer:        sn,
 	}
 }
 
@@ -37,10 +43,6 @@ func (ps *PostsService) CreatePosts(ctx context.Context, userId uuid.UUID, dto C
 			return generated.GetPostByIDRow{}, shared.NewErrorResponse(404, "your account was not found!")
 		}
 		return generated.GetPostByIDRow{}, shared.NewErrorResponse(500, "something wrong with the server! try again another time!")
-	}
-
-	if len(dto.Media) < 1 {
-		return generated.GetPostByIDRow{}, shared.NewErrorResponse(400, "please provide at least one media for posts!")
 	}
 
 	postVis := generated.PostVisibilityPUBLIC
@@ -58,10 +60,10 @@ func (ps *PostsService) CreatePosts(ctx context.Context, userId uuid.UUID, dto C
 	allMediaTypes := make([]string, len(rawMediaTypes))
 	for i, v := range rawMediaTypes {
 		switch v {
-		case "image":
-			allMediaTypes[i] = strings.ToUpper("image")
-		case "video":
-			allMediaTypes[i] = strings.ToUpper("video")
+		case storage.TypeImage:
+			allMediaTypes[i] = strings.ToUpper(storage.TypeImage)
+		case storage.TypeVideo:
+			allMediaTypes[i] = strings.ToUpper(storage.TypeVideo)
 		default:
 			ps.serverStorage.DeleteAllPrivateFiles(medFilenames, posts_folder)
 			return generated.GetPostByIDRow{}, shared.NewErrorResponse(400, "unsupported media type detected")
@@ -88,7 +90,7 @@ func (ps *PostsService) CreatePosts(ctx context.Context, userId uuid.UUID, dto C
 			Visibility: postVis,
 		})
 		if txErr != nil {
-			return fmt.Errorf("CreatePost error: %w", txErr) // Wrap error biar jelas
+			return fmt.Errorf("CreatePost error: %w", txErr)
 		}
 
 		createdMedia, txErr = qtx.CreatePostMediaBatch(ctx, generated.CreatePostMediaBatchParams{
@@ -110,6 +112,7 @@ func (ps *PostsService) CreatePosts(ctx context.Context, userId uuid.UUID, dto C
 		return generated.GetPostByIDRow{}, shared.NewErrorResponse(500, "cannot save the posts data")
 	}
 
+	ps.GenerateMediaUrl(createdMedia)
 	mediaBytes, err := json.Marshal(createdMedia)
 	if err != nil {
 		mediaBytes = []byte("[]")
@@ -129,4 +132,113 @@ func (ps *PostsService) CreatePosts(ctx context.Context, userId uuid.UUID, dto C
 		UpdatedAt:     createdPost.UpdatedAt,
 		Media:         mediaBytes,
 	}, nil
+}
+
+func (ps *PostsService) signMediaUrl(filename string, ttl time.Duration) string {
+	unsignedUrl := mediaAccessUrlPrefix + filename
+	signed, _ := ps.signer.Sign(unsignedUrl, time.Now().Add(ttl))
+
+	return signed
+}
+
+func (ps *PostsService) GenerateMediaUrl(el []generated.PostsMedium) {
+	for i := range el {
+		filename := strings.Split(el[i].MediaUrl, "/")[1]
+
+		var ttl time.Duration = 15 * time.Minute
+
+		if el[i].MediaType == generated.PostMediaTypeVIDEO {
+			ttl = 1 * time.Hour
+		}
+
+		el[i].MediaUrl = ps.signMediaUrl(filename, ttl)
+	}
+}
+
+func (ps *PostsService) GetPostsWithMediaById(ctx context.Context,
+	pID uuid.UUID, usrID uuid.UUID) (generated.GetPostByIDRow, *shared.ErrorResponse) {
+
+	post, err := ps.db.Query.GetPostByID(ctx, pID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return generated.GetPostByIDRow{}, shared.NewErrorResponse(404, "posts not found")
+		}
+
+		return generated.GetPostByIDRow{}, shared.NewErrorResponse(500, "Internal server error! please try again another time")
+
+	}
+
+	if post.Visibility == generated.PostVisibilityPRIVATE {
+
+		if usrID == uuid.Nil {
+			return generated.GetPostByIDRow{}, shared.NewErrorResponse(403, "you don't have permission to see this posts")
+		}
+
+		cv, err := ps.isPostVisibleToUser(usrID, post.UserID)
+		if err != nil {
+			return generated.GetPostByIDRow{}, shared.NewErrorResponse(500, "Internal server error! please try again another time")
+		}
+
+		if !cv {
+			return generated.GetPostByIDRow{}, shared.NewErrorResponse(403, "you don't have permission to see this posts")
+		}
+	}
+
+	var postMedia []generated.PostsMedium
+	mErr := json.Unmarshal(post.Media, &postMedia)
+
+	if mErr != nil {
+		return generated.GetPostByIDRow{}, shared.NewErrorResponse(500, "Internal server error! please try again another time")
+	}
+
+	ps.GenerateMediaUrl(postMedia)
+	mediaBytes, err := json.Marshal(postMedia)
+	if err != nil {
+		return generated.GetPostByIDRow{}, shared.NewErrorResponse(500, "Internal server error! please try again another time")
+	}
+	post.Media = mediaBytes
+
+	return post, nil
+}
+
+func (ps *PostsService) isPostVisibleToUser(userId, authorId uuid.UUID) (bool, *shared.ErrorResponse) {
+	// nanti impl ini jika sistem follow selesai!
+	return true, nil
+}
+
+func (ps *PostsService) DeletePosts(ctx context.Context, postID, userID uuid.UUID) *shared.ErrorResponse {
+
+	postsData, err := ps.db.Query.GetPostsDataOnlyById(ctx, postID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return shared.NewErrorResponse(404, "posts not found")
+		}
+		return shared.NewErrorResponse(500, "something wrong while retrieving posts data")
+	}
+
+	if postsData.UserID != userID {
+		return shared.NewErrorResponse(403, "access forbidden you can't delete this posts")
+	}
+
+	err = ps.db.Query.DeletePost(ctx, postID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return shared.NewErrorResponse(404, "posts not found")
+		}
+		return shared.NewErrorResponse(500, "something wrong while trying to delete posts data")
+	}
+
+	return nil
+}
+
+func (ps *PostsService) ResolvePostsMediaPath(filename string) string {
+
+	path := filepath.Join(
+		ps.serverStorage.PrivatePath,
+		posts_folder,
+		filename,
+	)
+
+	return path
+
 }

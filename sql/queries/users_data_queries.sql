@@ -36,6 +36,7 @@ SET username = sqlc.arg(username),
     status = 'ACTIVE'
 WHERE id = sqlc.arg(id)
 RETURNING *;
+
 -- name: UpdateUserStatus :one
 -- Dipanggil dari moderation service tiap kali ada moderation_action baru
 -- (suspend/ban/reinstate). status_reason & status_until nullable karena
@@ -68,3 +69,11 @@ SELECT * FROM users
 WHERE status != 'ACTIVE'
   AND status_until IS NOT NULL
   AND status_until <= now();
+
+
+-- name: UpdateUsersAccVisibility :one
+UPDATE users 
+    SET account_visibility = sqlc.arg(visibility),
+        updated_at = now()
+WHERE id = sqlc.arg(id)
+RETURNING *; 

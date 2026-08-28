@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"mime/multipart"
 	"strings"
 
@@ -17,17 +18,24 @@ import (
 
 const avatarFolder = "avatar"
 const bannerFolder = "banner"
+const publicUploadsUrl = "http://localhost/uploads/public/"
+
+type RedisUserCache interface {
+	Cache(ctx context.Context, data shared.UserCredential) error
+}
 
 type UsersService struct {
 	database      *db.Database
 	serverStorage *storage.FileStorage
+	userCache     RedisUserCache
 }
 
-func NewUsersService(db *db.Database, storage *storage.FileStorage) *UsersService {
+func NewUsersService(db *db.Database, storage *storage.FileStorage, cache RedisUserCache) *UsersService {
 
 	return &UsersService{
 		database:      db,
 		serverStorage: storage,
+		userCache:     cache,
 	}
 }
 
@@ -43,6 +51,9 @@ func (us *UsersService) GetUserDataWithProfileByID(ctx context.Context, id uuid.
 		return generated.GetUserWithProfileByIDRow{}, shared.NewErrorResponse(500, "something wrong with the server")
 
 	}
+
+	data.AvatarUrl = AppendUploadsUrl(data.AvatarUrl)
+	data.BannerUrl = AppendUploadsUrl(data.BannerUrl)
 
 	return data, nil
 
@@ -60,6 +71,9 @@ func (us *UsersService) GetUsersDataWithProfilesByUsername(
 		return generated.GetPublicProfileByUsernameRow{},
 			shared.NewErrorResponse(500, "something was wrong with the server, please try again another time")
 	}
+
+	data.AvatarUrl = AppendUploadsUrl(data.AvatarUrl)
+	data.BannerUrl = AppendUploadsUrl(data.BannerUrl)
 	return data, nil
 }
 
@@ -87,6 +101,9 @@ func (us *UsersService) UpdateUsersProfilesById(ctx context.Context, id uuid.UUI
 			"something wrong while trying to update the profile, please try again another time")
 
 	}
+
+	newData.AvatarUrl = AppendUploadsUrl(newData.AvatarUrl)
+	newData.BannerUrl = AppendUploadsUrl(newData.BannerUrl)
 
 	return newData, nil
 }
@@ -129,7 +146,9 @@ func (us *UsersService) UpdateProfilePicture(ctx context.Context, id uuid.UUID, 
 		us.serverStorage.DeletePublicFile(filename[1], avatarFolder)
 	}
 
-	return avatarUrl, nil
+	res := AppendUploadsUrl(&avatarUrl)
+
+	return *res, nil
 }
 
 func (us *UsersService) UpdateBannerPicture(
@@ -154,7 +173,9 @@ func (us *UsersService) UpdateBannerPicture(
 		us.serverStorage.DeletePublicFile(sv, bannerFolder)
 		return "", shared.NewErrorResponse(500, "something wrong while trying to update data!")
 	}
-	return bannerUrl, nil
+
+	resBanner := AppendUploadsUrl(&bannerUrl)
+	return *resBanner, nil
 
 }
 
@@ -237,17 +258,28 @@ func (us *UsersService) SubmitOnBoarding(ctx context.Context,
 				"something went wrong in onboarding process please try again another time!")
 	}
 
+	cacheErr := us.userCache.Cache(ctx, shared.UserCredential{
+		UserId: id,
+		Status: string(generated.UserStatusACTIVE),
+		Role:   string(oldData.Role),
+	})
+
+	if cacheErr != nil {
+		fmt.Println("CACHE SET MISS REASON : ", cacheErr.Error())
+	}
+
 	respData := generated.GetPublicProfileByUsernameRow{
-		ID:          id,
-		Username:    username,
-		IsVerified:  oldData.IsVerified,
-		Role:        oldData.Role,
-		DisplayName: oldData.DisplayName,
-		Bio:         oldData.Bio,
-		AvatarUrl:   oldData.AvatarUrl,
-		BannerUrl:   oldData.BannerUrl,
-		SocialLinks: oldData.SocialLinks,
-		CosplayTags: oldData.CosplayTags,
+		ID:                id,
+		Username:          username,
+		IsVerified:        oldData.IsVerified,
+		Role:              oldData.Role,
+		DisplayName:       oldData.DisplayName,
+		Bio:               oldData.Bio,
+		AvatarUrl:         oldData.AvatarUrl,
+		BannerUrl:         oldData.BannerUrl,
+		SocialLinks:       oldData.SocialLinks,
+		CosplayTags:       oldData.CosplayTags,
+		AccountVisibility: oldData.AccountVisibility,
 	}
 
 	return respData, nil
@@ -261,4 +293,37 @@ func (us *UsersService) IsUsernameAvaible(ctx context.Context, username string) 
 	}
 
 	return ex, nil
+}
+
+func AppendUploadsUrl(imgUrl *string) *string {
+
+	if imgUrl == nil {
+		return nil
+	}
+
+	tmp := publicUploadsUrl + *imgUrl
+
+	return &tmp
+}
+
+func (us *UsersService) UpdateAccountVisibility(ctx context.Context, id uuid.UUID, vis string) (generated.User, *shared.ErrorResponse) {
+
+	var visEnum generated.UsersVisibility = generated.UsersVisibilityPUBLIC
+	if vis == "PRIVATE" {
+		visEnum = generated.UsersVisibilityPRIVATE
+	}
+
+	data, err := us.database.Query.UpdateUsersAccVisibility(ctx, generated.UpdateUsersAccVisibilityParams{
+		Visibility: visEnum,
+		ID:         id,
+	})
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return generated.User{}, shared.NewErrorResponse(404, "account not found!")
+		}
+		return generated.User{}, shared.NewErrorResponse(500, "something wrong while trying to update your profile!")
+	}
+
+	return data, nil
 }

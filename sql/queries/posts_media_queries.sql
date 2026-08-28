@@ -9,10 +9,10 @@ RETURNING *;
 -- name: CreatePostMediaBatch :many
 INSERT INTO posts_media (post_id, media_type, media_url, display_order)
 SELECT
-    $1,
-    unnest(sqlc.arg(media_types)::text[]),
-    unnest(sqlc.arg(media_urls)::text[]),
-    unnest(sqlc.arg(display_orders)::smallint[])
+  $1,
+  unnest(sqlc.arg(media_types)::text[])::post_media_type,
+  unnest(sqlc.arg(media_urls)::text[]),
+  unnest(sqlc.arg(display_orders)::smallint[])
 RETURNING *;
 
 -- name: GetMediaByPostID :many

@@ -6,6 +6,8 @@ import (
 	"github.com/Agmer17/go-cosplay-backend/internal/posts"
 	"github.com/Agmer17/go-cosplay-backend/internal/storage"
 	"github.com/Agmer17/go-cosplay-backend/internal/users"
+	"github.com/Agmer17/go-cosplay-backend/internal/utils"
+	"github.com/leg100/surl/v2"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -13,6 +15,8 @@ type serviceConfigs struct {
 	AuthService  *auth.AuthService
 	UserService  *users.UsersService
 	PostsService *posts.PostsService
+
+	UrlSigner *surl.Signer
 }
 
 type serviceConfigsParams struct {
@@ -35,14 +39,19 @@ func NewServiceConfigs(env serviceConfigsParams) *serviceConfigs {
 		UserCache:    env.cacheConfigs.usersDataCache,
 	})
 
-	usersService := users.NewUsersService(env.Database, storage)
+	usersService := users.NewUsersService(env.Database, storage, env.cacheConfigs.usersDataCache)
 
-	postsService := posts.NewPostsService(env.Database, storage)
+	// generate random key for the signer
+	cryptoKey, _ := utils.GenerateSecureString(48)
+
+	signer := surl.New([]byte(cryptoKey))
+	postsService := posts.NewPostsService(env.Database, storage, signer)
 
 	return &serviceConfigs{
 		AuthService:  &authSvc,
 		UserService:  usersService,
 		PostsService: postsService,
+		UrlSigner:    signer,
 	}
 
 }

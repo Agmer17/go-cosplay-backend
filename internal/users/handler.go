@@ -190,6 +190,30 @@ func (uh *UserHandler) HandleCheckUsername(c *gin.Context) {
 	c.JSON(200, shared.NewSuccessResponse(200, "successfully checking the username", data))
 }
 
+func (uh *UserHandler) HandleUpdateUsersPrivacy(c *gin.Context) {
+
+	id, _ := middleware.GetUserIdFromContext(c)
+
+	var dto UpdateUsersPrvacy
+	if err := c.ShouldBindBodyWithJSON(&dto); err != nil {
+		vldMsg, ok := utils.ParseValidationErrors(err)
+		if !ok {
+			c.JSON(400, shared.NewErrorResponse(400, "invalid request body"))
+			return
+		}
+		c.JSON(400, shared.NewErrorResponse(400, vldMsg))
+		return
+	}
+
+	data, uptErr := uh.svc.UpdateAccountVisibility(c.Request.Context(), id, dto.Visibility)
+	if uptErr != nil {
+		c.JSON(uptErr.Code, shared.NewErrorResponse(uptErr.Code, uptErr))
+		return
+	}
+
+	c.JSON(200, shared.NewSuccessResponse(200, "successfully updating your privacy status", data))
+}
+
 func (uh *UserHandler) RegisterRoutes(r gin.IRouter) {
 	users := r.Group("/users")
 
@@ -209,4 +233,6 @@ func (uh *UserHandler) RegisterRoutes(r gin.IRouter) {
 
 	me.POST("/profile-picture", uh.HandlePostProfilePicture)
 	me.POST("/banner-picture", uh.HandlePostBannerPicture)
+
+	me.PATCH("/account_privacy", uh.HandleUpdateUsersPrivacy)
 }

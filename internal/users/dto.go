@@ -14,3 +14,7 @@ type UpdateProfilesDto struct {
 type UsernamePostsDto struct {
 	Username string `json:"username" binding:"required,min=4,max=30,alphanum"`
 }
+
+type UpdateUsersPrvacy struct {
+	Visibility string `json:"visibility" binding:"required,oneof=PUBLIC PRIVATE"`
+}

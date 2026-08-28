@@ -149,6 +149,31 @@ func (q *Queries) GetPostByID(ctx context.Context, id uuid.UUID) (GetPostByIDRow
 	return i, err
 }
 
+const getPostsDataOnlyById = `-- name: GetPostsDataOnlyById :one
+SELECT id, user_id, caption, location, visibility, like_count, comment_count, bookmark_count, share_count, created_at, updated_at 
+FROM posts
+WHERE id = $1
+`
+
+func (q *Queries) GetPostsDataOnlyById(ctx context.Context, id uuid.UUID) (Post, error) {
+	row := q.db.QueryRow(ctx, getPostsDataOnlyById, id)
+	var i Post
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Caption,
+		&i.Location,
+		&i.Visibility,
+		&i.LikeCount,
+		&i.CommentCount,
+		&i.BookmarkCount,
+		&i.ShareCount,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const incrementPostBookmarkCount = `-- name: IncrementPostBookmarkCount :exec
 UPDATE posts SET bookmark_count = bookmark_count + 1 WHERE id = $1
 `

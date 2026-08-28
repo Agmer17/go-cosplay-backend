@@ -49,10 +49,10 @@ func (q *Queries) CreatePostMedia(ctx context.Context, arg CreatePostMediaParams
 const createPostMediaBatch = `-- name: CreatePostMediaBatch :many
 INSERT INTO posts_media (post_id, media_type, media_url, display_order)
 SELECT
-    $1,
-    unnest($2::text[])::post_media_type,
-    unnest($3::text[]),
-    unnest($4::smallint[])
+  $1,
+  unnest($2::text[])::post_media_type,
+  unnest($3::text[]),
+  unnest($4::smallint[])
 RETURNING id, post_id, media_type, media_url, display_order, created_at
 `
 

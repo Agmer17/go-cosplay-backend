@@ -57,12 +57,18 @@ func NewApp(configs Configs, rtr *gin.Engine) *App {
 		cacheConfigs:      cacheConf,
 	})
 
+	mid := middleware.NewAuthMiddleware(
+		cacheConf.sessionStore,
+		cacheConf.usersDataCache,
+		database.Query,
+	)
+
 	return &App{
 		Router:         rtr,
 		Database:       database,
 		ServiceConfigs: serviceConfigs,
 		RedisClient:    redisClient,
-		Middleware:     middleware.NewAuthMiddleware(cacheConf.sessionStore, cacheConf.usersDataCache),
+		Middleware:     mid,
 	}
 
 }
@@ -75,8 +81,7 @@ func (app *App) SetupRoutes() {
 	// create something in here
 	authHandler := auth.NewAuthHandler(app.ServiceConfigs.AuthService)
 	userHandler := users.NewUserHandler(app.ServiceConfigs.UserService, app.Middleware)
-	postsHandler := posts.NewPostsHandler(app.ServiceConfigs.PostsService, app.Middleware)
-
+	postsHandler := posts.NewPostsHandler(app.ServiceConfigs.PostsService, app.Middleware, app.ServiceConfigs.UrlSigner)
 	var hs []BootstrapHandler = []BootstrapHandler{
 		authHandler,
 		userHandler,
