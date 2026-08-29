@@ -7,11 +7,6 @@ INSERT INTO posts (
 RETURNING *;
 
 
--- name: GetPostsDataOnlyById :one
-SELECT * 
-FROM posts
-WHERE id = sqlc.arg(id);
-
 -- name: GetPostByID :one
 SELECT
     p.*,
@@ -24,6 +19,9 @@ FROM posts p
 LEFT JOIN posts_media pm ON pm.post_id = p.id
 WHERE p.id = $1
 GROUP BY p.id;
+
+-- name: GetPostsDataOnlyById :one
+SELECT * FROM posts where id = sqlc.arg(id);
 
 -- name: ListPostsByUser :many
 -- Keyset pagination pakai created_at + id sebagai tie-breaker
@@ -45,9 +43,8 @@ LIMIT $2;
 -- name: UpdatePost :one
 UPDATE posts
 SET
-    caption    = $2,
-    location   = $3,
-    visibility = $4,
+    caption    = COALESCE(sqlc.narg(caption), caption),
+    location   =  COALESCE(sqlc.narg(location), location),
     updated_at = now()
 WHERE id = $1
 RETURNING *;

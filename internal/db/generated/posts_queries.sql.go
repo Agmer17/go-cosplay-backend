@@ -150,9 +150,7 @@ func (q *Queries) GetPostByID(ctx context.Context, id uuid.UUID) (GetPostByIDRow
 }
 
 const getPostsDataOnlyById = `-- name: GetPostsDataOnlyById :one
-SELECT id, user_id, caption, location, visibility, like_count, comment_count, bookmark_count, share_count, created_at, updated_at 
-FROM posts
-WHERE id = $1
+SELECT id, user_id, caption, location, visibility, like_count, comment_count, bookmark_count, share_count, created_at, updated_at FROM posts where id = $1
 `
 
 func (q *Queries) GetPostsDataOnlyById(ctx context.Context, id uuid.UUID) (Post, error) {
@@ -291,28 +289,21 @@ func (q *Queries) ListPostsByUser(ctx context.Context, arg ListPostsByUserParams
 const updatePost = `-- name: UpdatePost :one
 UPDATE posts
 SET
-    caption    = $2,
-    location   = $3,
-    visibility = $4,
+    caption    = COALESCE($2, caption),
+    location   =  COALESCE($3, location),
     updated_at = now()
 WHERE id = $1
 RETURNING id, user_id, caption, location, visibility, like_count, comment_count, bookmark_count, share_count, created_at, updated_at
 `
 
 type UpdatePostParams struct {
-	ID         uuid.UUID      `json:"id"`
-	Caption    *string        `json:"caption"`
-	Location   *string        `json:"location"`
-	Visibility PostVisibility `json:"visibility"`
+	ID       uuid.UUID `json:"id"`
+	Caption  *string   `json:"caption"`
+	Location *string   `json:"location"`
 }
 
 func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) (Post, error) {
-	row := q.db.QueryRow(ctx, updatePost,
-		arg.ID,
-		arg.Caption,
-		arg.Location,
-		arg.Visibility,
-	)
+	row := q.db.QueryRow(ctx, updatePost, arg.ID, arg.Caption, arg.Location)
 	var i Post
 	err := row.Scan(
 		&i.ID,

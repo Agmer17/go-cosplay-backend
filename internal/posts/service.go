@@ -208,7 +208,7 @@ func (ps *PostsService) isPostVisibleToUser(userId, authorId uuid.UUID) (bool, *
 
 func (ps *PostsService) DeletePosts(ctx context.Context, postID, userID uuid.UUID) *shared.ErrorResponse {
 
-	postsData, err := ps.db.Query.GetPostsDataOnlyById(ctx, postID)
+	postsData, err := ps.db.Query.GetPostByID(ctx, postID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return shared.NewErrorResponse(404, "posts not found")
@@ -228,7 +228,44 @@ func (ps *PostsService) DeletePosts(ctx context.Context, postID, userID uuid.UUI
 		return shared.NewErrorResponse(500, "something wrong while trying to delete posts data")
 	}
 
+	var deletedPostsMedia []generated.PostsMedium
+	if err := json.Unmarshal(postsData.Media, &deletedPostsMedia); err != nil {
+		fmt.Println("cannot delete the posts media file : " + err.Error())
+		return nil
+	}
+
+	var deletedFilenames []string = make([]string, len(deletedPostsMedia))
+	for i, v := range deletedPostsMedia {
+		deletedFilenames[i] = strings.Split(v.MediaUrl, "/")[1]
+	}
+
+	ps.serverStorage.DeleteAllPrivateFiles(deletedFilenames, posts_folder)
 	return nil
+}
+
+func (ps *PostsService) UpdatePostsData(ctx context.Context, userId, postsId uuid.UUID, dto UpdatePostsDataDto) (generated.Post, *shared.ErrorResponse) {
+
+	oldData, err := ps.db.Query.GetPostsDataOnlyById(ctx, postsId)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return generated.Post{}, shared.NewErrorResponse(404, "posts not found")
+		}
+		return generated.Post{}, shared.NewErrorResponse(404, "posts not found")
+	}
+
+	if oldData.UserID != userId {
+		return generated.Post{}, shared.NewErrorResponse(403, "you can't edit this posts!")
+
+	}
+
+	updatedData, err := ps.db.Query.UpdatePost(ctx, generated.UpdatePostParams{
+		ID:       postsId,
+		Caption:  dto.Caption,
+		Location: dto.Location,
+	})
+
+	return updatedData, nil
+
 }
 
 func (ps *PostsService) ResolvePostsMediaPath(filename string) string {

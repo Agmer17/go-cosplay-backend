@@ -4,6 +4,7 @@ import (
 	"github.com/Agmer17/go-cosplay-backend/internal/db/generated"
 	"github.com/Agmer17/go-cosplay-backend/internal/middleware"
 	"github.com/Agmer17/go-cosplay-backend/internal/shared"
+	"github.com/Agmer17/go-cosplay-backend/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/leg100/surl/v2"
@@ -113,6 +114,36 @@ func (ph *PostsHandler) HandleDeletePosts(c *gin.Context) {
 	c.JSON(200, shared.NewSuccessResponse(200, "sucessfully deleting the posts", nil))
 }
 
+func (ph *PostsHandler) HandlePatchPosts(c *gin.Context) {
+
+	param := c.Param("id")
+	postsID, err := uuid.Parse(param)
+	if err != nil {
+		c.JSON(400, shared.NewErrorResponse(400, "invalid id parameter!"))
+		return
+	}
+
+	id, _ := middleware.GetUserIdFromContext(c)
+	var dto UpdatePostsDataDto
+	if err := c.ShouldBindBodyWithJSON(&dto); err != nil {
+		vldMsg, ok := utils.ParseValidationErrors(err)
+		if !ok {
+			c.JSON(400, shared.NewErrorResponse(400, "invalid request body"))
+			return
+		}
+		c.JSON(400, shared.NewErrorResponse(400, vldMsg))
+		return
+	}
+
+	updatedData, uptErr := ph.svc.UpdatePostsData(c.Request.Context(), id, postsID, dto)
+	if uptErr != nil {
+		c.JSON(uptErr.Code, uptErr)
+		return
+	}
+
+	c.JSON(200, shared.NewSuccessResponse(200, "sucessfully updating the posts", updatedData))
+}
+
 func (ph *PostsHandler) RegisterRoutes(r gin.IRouter) {
 
 	postsRoutes := r.Group("/posts")
@@ -128,5 +159,6 @@ func (ph *PostsHandler) RegisterRoutes(r gin.IRouter) {
 
 	authPosts.POST("/create", ph.HanldeCreatePosts)
 	authPosts.DELETE("/delete/:id", ph.HandleDeletePosts)
+	authPosts.PATCH("/update/:id", ph.HandlePatchPosts)
 
 }

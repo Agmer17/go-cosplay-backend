@@ -138,7 +138,7 @@ func (as *AuthService) AuthenticateGoogleLogin(ctx context.Context, code string)
 
 		userData, err := q.CreateUser(ctx, generated.CreateUserParams{
 			ID:       authData.ID,
-			Username: "USER-" + randStr,
+			Username: "USER" + randStr,
 			Role:     generated.UserRoleADMIN,
 		})
 

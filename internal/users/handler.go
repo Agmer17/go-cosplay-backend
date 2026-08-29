@@ -3,6 +3,7 @@ package users
 import (
 	"strings"
 
+	"github.com/Agmer17/go-cosplay-backend/internal/db/generated"
 	"github.com/Agmer17/go-cosplay-backend/internal/middleware"
 	"github.com/Agmer17/go-cosplay-backend/internal/shared"
 	"github.com/Agmer17/go-cosplay-backend/internal/utils"
@@ -229,10 +230,12 @@ func (uh *UserHandler) RegisterRoutes(r gin.IRouter) {
 
 	me.POST("/onboarding", uh.HandlePostOnBoarding)
 
-	me.PATCH("/username", uh.HandleUpdateMyUsername)
+	activeUsersRoutes := me.Group("/")
+	activeUsersRoutes.Use(uh.mid.RequireUsersStatus([]generated.UserStatus{generated.UserStatusACTIVE}))
+	activeUsersRoutes.PATCH("/username", uh.HandleUpdateMyUsername)
 
-	me.POST("/profile-picture", uh.HandlePostProfilePicture)
-	me.POST("/banner-picture", uh.HandlePostBannerPicture)
+	activeUsersRoutes.POST("/profile-picture", uh.HandlePostProfilePicture)
+	activeUsersRoutes.POST("/banner-picture", uh.HandlePostBannerPicture)
 
-	me.PATCH("/account_privacy", uh.HandleUpdateUsersPrivacy)
+	activeUsersRoutes.PATCH("/account_privacy", uh.HandleUpdateUsersPrivacy)
 }
