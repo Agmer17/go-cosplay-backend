@@ -82,13 +82,18 @@ func (q *Queries) DecrementPostLikeCount(ctx context.Context, id uuid.UUID) erro
 	return err
 }
 
-const decrementPostShareCount = `-- name: DecrementPostShareCount :exec
-UPDATE posts SET share_count = GREATEST(share_count - 1, 0) WHERE id = $1
+const decrementPostShareCount = `-- name: DecrementPostShareCount :one
+UPDATE posts 
+SET share_count = GREATEST(share_count - 1, 0) 
+WHERE id = $1 
+RETURNING share_count
 `
 
-func (q *Queries) DecrementPostShareCount(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, decrementPostShareCount, id)
-	return err
+func (q *Queries) DecrementPostShareCount(ctx context.Context, id uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, decrementPostShareCount, id)
+	var share_count int32
+	err := row.Scan(&share_count)
+	return share_count, err
 }
 
 const deletePost = `-- name: DeletePost :exec
@@ -199,13 +204,18 @@ func (q *Queries) IncrementPostLikeCount(ctx context.Context, id uuid.UUID) erro
 	return err
 }
 
-const incrementPostShareCount = `-- name: IncrementPostShareCount :exec
-UPDATE posts SET share_count = share_count + 1 WHERE id = $1
+const incrementPostShareCount = `-- name: IncrementPostShareCount :one
+UPDATE posts 
+SET share_count = share_count + 1 
+WHERE id = $1 
+RETURNING share_count
 `
 
-func (q *Queries) IncrementPostShareCount(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, incrementPostShareCount, id)
-	return err
+func (q *Queries) IncrementPostShareCount(ctx context.Context, id uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, incrementPostShareCount, id)
+	var share_count int32
+	err := row.Scan(&share_count)
+	return share_count, err
 }
 
 const listPostsByUser = `-- name: ListPostsByUser :many

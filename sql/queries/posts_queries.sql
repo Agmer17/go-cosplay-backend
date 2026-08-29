@@ -70,8 +70,14 @@ UPDATE posts SET bookmark_count = bookmark_count + 1 WHERE id = $1;
 -- name: DecrementPostBookmarkCount :exec
 UPDATE posts SET bookmark_count = GREATEST(bookmark_count - 1, 0) WHERE id = $1;
 
--- name: IncrementPostShareCount :exec
-UPDATE posts SET share_count = share_count + 1 WHERE id = $1;
+-- name: IncrementPostShareCount :one
+UPDATE posts 
+SET share_count = share_count + 1 
+WHERE id = $1 
+RETURNING share_count;
 
--- name: DecrementPostShareCount :exec
-UPDATE posts SET share_count = GREATEST(share_count - 1, 0) WHERE id = $1;
+-- name: DecrementPostShareCount :one
+UPDATE posts 
+SET share_count = GREATEST(share_count - 1, 0) 
+WHERE id = $1 
+RETURNING share_count;

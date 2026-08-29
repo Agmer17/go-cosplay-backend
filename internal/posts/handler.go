@@ -144,11 +144,30 @@ func (ph *PostsHandler) HandlePatchPosts(c *gin.Context) {
 	c.JSON(200, shared.NewSuccessResponse(200, "sucessfully updating the posts", updatedData))
 }
 
+func (ph *PostsHandler) HandleSharingPosts(c *gin.Context) {
+
+	param := c.Param("id")
+	postsID, err := uuid.Parse(param)
+	if err != nil {
+		c.JSON(400, shared.NewErrorResponse(400, "invalid id parameter!"))
+		return
+	}
+
+	data, incErr := ph.svc.IncrementShareCount(c.Request.Context(), postsID)
+	if incErr != nil {
+		c.JSON(incErr.Code, incErr)
+		return
+	}
+
+	c.JSON(200, shared.NewSuccessResponse(200, "sucessfully sharing the posts", data))
+}
+
 func (ph *PostsHandler) RegisterRoutes(r gin.IRouter) {
 
 	postsRoutes := r.Group("/posts")
 
 	postsRoutes.GET("/id/:id", ph.HandleGetPostsById)
+	postsRoutes.POST("/share/:id", ph.HandleSharingPosts)
 	postsRoutes.GET("/media/:filename", ph.mid.RequireSignedUrl(ph.sign), ph.HandleServePostsMedia)
 
 	authPosts := postsRoutes.Group("/")

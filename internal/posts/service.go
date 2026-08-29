@@ -279,3 +279,17 @@ func (ps *PostsService) ResolvePostsMediaPath(filename string) string {
 	return path
 
 }
+
+func (ps *PostsService) IncrementShareCount(ctx context.Context, id uuid.UUID) (int32, *shared.ErrorResponse) {
+
+	data, err := ps.db.Query.IncrementPostShareCount(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+
+			return 0, shared.NewErrorResponse(404, "posts not found")
+		}
+		return 0, shared.NewErrorResponse(500, "INTERNAL SERVER ERROR! PLEASE TRY AGAIN ANOTHER TIME")
+	}
+
+	return data, nil
+}
