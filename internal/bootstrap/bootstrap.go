@@ -79,7 +79,7 @@ type BootstrapHandler interface {
 
 func (app *App) SetupRoutes() {
 	// create something in here
-	authHandler := auth.NewAuthHandler(app.ServiceConfigs.AuthService)
+	authHandler := auth.NewAuthHandler(app.ServiceConfigs.AuthService, app.Middleware)
 	userHandler := users.NewUserHandler(app.ServiceConfigs.UserService, app.Middleware)
 	postsHandler := posts.NewPostsHandler(app.ServiceConfigs.PostsService, app.Middleware, app.ServiceConfigs.UrlSigner)
 	var hs []BootstrapHandler = []BootstrapHandler{

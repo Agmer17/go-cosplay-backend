@@ -3,6 +3,7 @@ package auth
 import (
 	"net/http"
 
+	"github.com/Agmer17/go-cosplay-backend/internal/middleware"
 	"github.com/Agmer17/go-cosplay-backend/internal/shared"
 	"github.com/gin-gonic/gin"
 )
@@ -11,11 +12,13 @@ const oneWeek = 7 * 24 * 60 * 60
 
 type AuthHandler struct {
 	service *AuthService
+	mid     *middleware.AuthMiddleware
 }
 
-func NewAuthHandler(service *AuthService) *AuthHandler {
+func NewAuthHandler(service *AuthService, md *middleware.AuthMiddleware) *AuthHandler {
 	return &AuthHandler{
 		service: service,
+		mid:     md,
 	}
 }
 
@@ -75,12 +78,29 @@ func (ah *AuthHandler) HandleLogout(c *gin.Context) {
 
 }
 
+func (ah *AuthHandler) HandleGetMySessionData(c *gin.Context) {
+
+	id, _ := middleware.GetUserIdFromContext(c)
+	cookie, err := c.Cookie("access_token")
+	if err != nil {
+		c.JSON(401, shared.NewErrorResponse(401, "you need to login to access this feature"))
+		return
+	}
+
+	c.JSON(200, shared.NewSuccessResponse(200, "successfully getting your session data", gin.H{
+		"user_id":    id,
+		"session_id": cookie,
+	}))
+
+}
+
 func (ah *AuthHandler) RegisterRoutes(r gin.IRouter) {
 	auth := r.Group("/auth")
 	{
 		auth.GET("/login/google", ah.HandleGoogleLogin)
 		auth.GET("/google", ah.HandleGoogleCallback)
 		auth.GET("/logout", ah.HandleLogout)
+		auth.GET("/my-session", ah.mid.AuthenticatedUserOnly(), ah.HandleGetMySessionData)
 	}
 
 	// privateAuth := auth.Group("/")
