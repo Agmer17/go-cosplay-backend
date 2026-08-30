@@ -14,10 +14,25 @@ SELECT
         jsonb_agg(pm.* ORDER BY pm.display_order)
             FILTER (WHERE pm.id IS NOT NULL),
         '[]'::jsonb
-    )::jsonb AS media
+    )::jsonb AS media,
+    false as is_liked
 FROM posts p
 LEFT JOIN posts_media pm ON pm.post_id = p.id
 WHERE p.id = $1
+GROUP BY p.id;
+
+-- name: GetPostsByIDArray :many
+SELECT
+    p.*,
+    COALESCE(
+        jsonb_agg(pm.* ORDER BY pm.display_order)
+            FILTER (WHERE pm.id IS NOT NULL),
+        '[]'::jsonb
+    )::jsonb AS media,
+    false as is_liked
+FROM posts p
+LEFT JOIN posts_media pm ON pm.post_id = p.id
+WHERE p.id = ANY($1::uuid[])
 GROUP BY p.id;
 
 -- name: GetPostsDataOnlyById :one

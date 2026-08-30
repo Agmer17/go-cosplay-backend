@@ -112,7 +112,8 @@ SELECT
         jsonb_agg(pm.* ORDER BY pm.display_order)
             FILTER (WHERE pm.id IS NOT NULL),
         '[]'::jsonb
-    )::jsonb AS media
+    )::jsonb AS media,
+    false as is_liked
 FROM posts p
 LEFT JOIN posts_media pm ON pm.post_id = p.id
 WHERE p.id = $1
@@ -132,6 +133,7 @@ type GetPostByIDRow struct {
 	CreatedAt     time.Time       `json:"created_at"`
 	UpdatedAt     time.Time       `json:"updated_at"`
 	Media         json.RawMessage `json:"media"`
+	IsLiked       bool            `json:"is_liked"`
 }
 
 func (q *Queries) GetPostByID(ctx context.Context, id uuid.UUID) (GetPostByIDRow, error) {
@@ -150,8 +152,74 @@ func (q *Queries) GetPostByID(ctx context.Context, id uuid.UUID) (GetPostByIDRow
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Media,
+		&i.IsLiked,
 	)
 	return i, err
+}
+
+const getPostsByIDArray = `-- name: GetPostsByIDArray :many
+SELECT
+    p.id, p.user_id, p.caption, p.location, p.visibility, p.like_count, p.comment_count, p.bookmark_count, p.share_count, p.created_at, p.updated_at,
+    COALESCE(
+        jsonb_agg(pm.* ORDER BY pm.display_order)
+            FILTER (WHERE pm.id IS NOT NULL),
+        '[]'::jsonb
+    )::jsonb AS media,
+    false as is_liked
+FROM posts p
+LEFT JOIN posts_media pm ON pm.post_id = p.id
+WHERE p.id = ANY($1::uuid[])
+GROUP BY p.id
+`
+
+type GetPostsByIDArrayRow struct {
+	ID            uuid.UUID       `json:"id"`
+	UserID        uuid.UUID       `json:"user_id"`
+	Caption       *string         `json:"caption"`
+	Location      *string         `json:"location"`
+	Visibility    PostVisibility  `json:"visibility"`
+	LikeCount     int32           `json:"like_count"`
+	CommentCount  int32           `json:"comment_count"`
+	BookmarkCount int32           `json:"bookmark_count"`
+	ShareCount    int32           `json:"share_count"`
+	CreatedAt     time.Time       `json:"created_at"`
+	UpdatedAt     time.Time       `json:"updated_at"`
+	Media         json.RawMessage `json:"media"`
+	IsLiked       bool            `json:"is_liked"`
+}
+
+func (q *Queries) GetPostsByIDArray(ctx context.Context, dollar_1 []uuid.UUID) ([]GetPostsByIDArrayRow, error) {
+	rows, err := q.db.Query(ctx, getPostsByIDArray, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPostsByIDArrayRow
+	for rows.Next() {
+		var i GetPostsByIDArrayRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Caption,
+			&i.Location,
+			&i.Visibility,
+			&i.LikeCount,
+			&i.CommentCount,
+			&i.BookmarkCount,
+			&i.ShareCount,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Media,
+			&i.IsLiked,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getPostsDataOnlyById = `-- name: GetPostsDataOnlyById :one

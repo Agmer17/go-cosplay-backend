@@ -7,6 +7,7 @@ import (
 
 	"github.com/Agmer17/go-cosplay-backend/internal/auth"
 	"github.com/Agmer17/go-cosplay-backend/internal/db"
+	"github.com/Agmer17/go-cosplay-backend/internal/likes"
 	"github.com/Agmer17/go-cosplay-backend/internal/middleware"
 	"github.com/Agmer17/go-cosplay-backend/internal/posts"
 	"github.com/Agmer17/go-cosplay-backend/internal/users"
@@ -82,10 +83,13 @@ func (app *App) SetupRoutes() {
 	authHandler := auth.NewAuthHandler(app.ServiceConfigs.AuthService, app.Middleware)
 	userHandler := users.NewUserHandler(app.ServiceConfigs.UserService, app.Middleware)
 	postsHandler := posts.NewPostsHandler(app.ServiceConfigs.PostsService, app.Middleware, app.ServiceConfigs.UrlSigner)
+
+	postLikesHandler := likes.NewPostsLikesHandler(app.ServiceConfigs.LikesService, app.Middleware)
 	var hs []BootstrapHandler = []BootstrapHandler{
 		authHandler,
 		userHandler,
 		postsHandler,
+		postLikesHandler,
 	}
 
 	api := app.Router.Group("/api")

@@ -76,7 +76,7 @@ func (mw *AuthMiddleware) AuthenticatedUserOnly() gin.HandlerFunc {
 		_, ex := c.Get(CurrentUserId)
 
 		if !ex {
-			c.AbortWithStatusJSON(403, shared.NewErrorResponse(403, "you don't have permision to access this feature"))
+			c.AbortWithStatusJSON(401, shared.NewErrorResponse(401, "you don't have permision to access this feature"))
 			return
 		}
 
